@@ -30,6 +30,8 @@ Een volledig zelf gehoste remote-support-oplossing:
 - **Downloadportaal**: installers aan- of uitzetten, bijwerken, eigen installers uploaden, downloadstatistieken en portaalteksten.
 - **Gebruikers**: technici en beheerders. Na inloggen in de support-app zien ze alle computers onder *Toegankelijke apparaten*, en hun adresboek wordt gesynchroniseerd.
 - **Uitrollen**: een configuratie-string en PowerShell- en macOS-scripts voor uitrol via Intune, GPO of RMM.
+- **Onbeheerde toegang**: sla per computer het vaste wachtwoord op (versleuteld). Verbinden geeft het automatisch mee, ook als er niemand achter de computer zit.
+- **Diagnose**: één pagina die URL, proxy, ID-server, key, poorten, installers en heartbeats controleert en per probleem zegt wat je moet doen.
 - Licht en donker thema, responsive, Nederlandstalig. Alleen Python-stdlib, data in SQLite.
 
 | | |

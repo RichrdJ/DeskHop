@@ -4,6 +4,9 @@ LABEL org.opencontainers.image.title="DeskHop Console" \
       org.opencontainers.image.description="Self-hosted remote support portaal en beheerconsole" \
       org.opencontainers.image.licenses="MIT"
 
+ARG VERSION=dev
+ENV APP_VERSION=$VERSION
+
 ENV PYTHONUNBUFFERED=1 \
     DATA_DIR=/data \
     WEB_DIR=/app/web \

@@ -128,6 +128,17 @@
     }, 2500);
   }
 
+  // Managed device: use its stored unattended password when there is one.
+  async function connectDevice(id) {
+    const d = S.devices.find(x => x.id === id);
+    let pw = '';
+    if (d && d.has_password) {
+      try { pw = (await api('GET', '/devices/' + encodeURIComponent(id) + '/password')).password || ''; }
+      catch (e) { toast(e.message, true); }
+    }
+    connect(id, pw);
+  }
+
   function noAppHint() {
     if ($('#noapp')) return;
     const el = document.createElement('div');
@@ -210,6 +221,7 @@
     downloads: { title: 'Downloadportaal', icon: 'download', render: pageDownloads },
     deploy: { title: 'Uitrollen', icon: 'rocket', render: pageDeploy },
     settings: { title: 'Instellingen', icon: 'settings', render: pageSettings },
+    status: { title: 'Diagnose', icon: 'shield', render: pageStatus, admin: true },
   };
 
   function renderShell() {
@@ -227,7 +239,9 @@
             <a href="#/downloads" data-p="downloads">${icon('download')} Downloadportaal</a>
             <a href="#/deploy" data-p="deploy">${icon('rocket')} Uitrollen</a>
             <a href="#/settings" data-p="settings">${icon('settings')} Instellingen</a>
+            ${me.is_admin ? `<a href="#/status" data-p="status">${icon('shield')} Diagnose <span class="count" id="nav-diag"></span></a>` : ''}
           </nav>
+          <div class="side-ver" id="side-ver"></div>
           <div class="side-foot">
             <div class="avatar">${esc(initials(me.display_name))}</div>
             <div class="who"><b>${esc(me.display_name)}</b><small>${me.is_admin ? 'Beheerder' : 'Technicus'}</small></div>
@@ -250,6 +264,8 @@
       $('#theme').innerHTML = icon(document.documentElement.dataset.theme === 'dark' ? 'sun' : 'moon');
     };
     $('#menu').onclick = () => $('.shell').classList.toggle('nav-open');
+    fetch('/console-api/meta').then(r => r.json()).then(m => { $('#side-ver').textContent = APP + ' ' + (m.version || ''); }).catch(() => {});
+    if (me.is_admin) api('GET', '/diagnose').then(r => diagBadge(r.overall)).catch(() => {});
     route();
   }
 
@@ -274,7 +290,7 @@
     const c = e.target.closest('[data-copy]');
     if (c) { e.preventDefault(); copy(c.dataset.copy); }
     const cn = e.target.closest('[data-connect]');
-    if (cn) { e.preventDefault(); e.stopPropagation(); connect(cn.dataset.connect); }
+    if (cn) { e.preventDefault(); e.stopPropagation(); connectDevice(cn.dataset.connect); }
   });
 
   async function loadDevices() {
@@ -418,7 +434,7 @@
     }
     l.innerHTML = `<table class="tbl"><thead><tr><th>Computer</th><th class="hide-sm">Groep</th><th class="hide-sm">Gebruiker</th><th class="hide-sm">Besturingssysteem</th><th class="hide-sm">Laatst gezien</th><th></th></tr></thead><tbody>` +
       rows.map(d => `<tr class="clickable" data-id="${esc(d.id)}">
-        <td><div class="dev-name"><div class="dev-ic">${icon(osIcon(d.os))}<span class="dot ${d.online ? 'on' : ''}"></span></div><div><b>${esc(d.name)}</b><small class="mono">${esc(fmtId(d.id))}</small></div></div></td>
+        <td><div class="dev-name"><div class="dev-ic">${icon(osIcon(d.os))}<span class="dot ${d.online ? 'on' : ''}"></span></div><div><b>${esc(d.name)}${d.has_password ? ` <span title="Onbeheerde toegang ingesteld" style="color:var(--muted)">${icon('key', 13)}</span>` : ''}</b><small class="mono">${esc(fmtId(d.id))}</small></div></div></td>
         <td class="hide-sm">${d.group ? `<span class="tag"><i style="background:${esc(d.group_color)}"></i>${esc(d.group)}</span>` : '<span class="muted">—</span>'}</td>
         <td class="hide-sm">${esc(d.username || '—')}</td>
         <td class="hide-sm">${esc(osShort(d.os))}</td>
@@ -482,6 +498,11 @@
           <div class="field"><label>Weergavenaam</label><input class="input" name="alias" value="${esc(d.alias)}" placeholder="${esc(d.hostname || d.id)}"></div>
           <div class="field"><label>Groep</label><select class="input" name="group_id">${groupOptions(d.group_id)}</select></div>
           <div class="field"><label>Notities</label><textarea class="input" name="note" placeholder="Bijv. locatie, contactpersoon…">${esc(d.note)}</textarea></div>
+          <div class="field"><label>Wachtwoord voor onbeheerde toegang</label>
+            <input class="input" type="password" name="access_password" autocomplete="new-password" data-lpignore="true"
+              placeholder="${d.has_password ? '•••••••• opgeslagen (leeg laten = ongewijzigd)' : 'Vast wachtwoord van deze computer'}">
+            <span class="hint">Het vaste wachtwoord dat op deze computer is ingesteld. Verbinden geeft het automatisch mee, ook als er niemand achter de computer zit.
+            ${d.has_password ? '<a href="#" id="dpw-clear">Opgeslagen wachtwoord verwijderen</a>' : ''}</span></div>
         </form>
         <h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:8px 0 12px">Systeeminformatie</h3>
         <dl class="kv">
@@ -507,9 +528,17 @@
     $('#dsave', wrap).onclick = async () => {
       const f = $('#df', wrap);
       try {
-        await api('PATCH', '/devices/' + encodeURIComponent(d.id), { alias: f.alias.value, note: f.note.value, group_id: f.group_id.value ? Number(f.group_id.value) : null });
+        const body = { alias: f.alias.value, note: f.note.value, group_id: f.group_id.value ? Number(f.group_id.value) : null };
+        if (f.access_password.value) body.access_password = f.access_password.value;
+        await api('PATCH', '/devices/' + encodeURIComponent(d.id), body);
         toast('Computer bijgewerkt'); close(); await loadDevices(); drawGroups(); drawList();
       } catch (e) { toast(e.message, true); }
+    };
+    const clr = $('#dpw-clear', wrap);
+    if (clr) clr.onclick = async ev => {
+      ev.preventDefault();
+      try { await api('PATCH', '/devices/' + encodeURIComponent(d.id), { access_password: '' }); toast('Wachtwoord verwijderd'); close(); await loadDevices(); drawList(); }
+      catch (e) { toast(e.message, true); }
     };
     const del = $('#ddel', wrap);
     if (del) del.onclick = async () => {
@@ -712,6 +741,41 @@
       else { clearInterval(S.timer); S.timer = setInterval(() => load().catch(() => {}), 20000); }
     };
     try { await load(true); } catch (e) { toast(e.message, true); }
+  }
+
+  // ======================= Diagnose =======================
+  const DIAG = {
+    ok: { icon: 'check', cls: 'ok', label: 'In orde' },
+    warn: { icon: 'info', cls: 'warn', label: 'Let op' },
+    error: { icon: 'x', cls: 'err', label: 'Probleem' },
+    info: { icon: 'info', cls: 'info', label: 'Info' },
+  };
+  function diagBadge(overall) {
+    const el = $('#nav-diag'); if (!el) return;
+    el.textContent = overall === 'error' ? '!' : overall === 'warn' ? '!' : '';
+    el.className = 'count' + (overall === 'error' ? ' count-err' : overall === 'warn' ? ' count-warn' : '');
+  }
+  async function pageStatus(el) {
+    el.innerHTML = `<div class="card"><div class="card-h">${icon('shield', 18)}<h3>Diagnose</h3><span class="muted" id="diag-when"></span><span class="spacer"></span>
+      <button class="btn sm" id="diag-run">${icon('sync', 14)} Opnieuw controleren</button></div><div id="diag-body"><div class="empty">Controleren…</div></div></div>`;
+    const run = async () => {
+      $('#diag-run').disabled = true;
+      try {
+        const r = await api('GET', '/diagnose');
+        diagBadge(r.overall);
+        const groups = [];
+        r.checks.forEach(c => { let g = groups.find(x => x.name === c.group); if (!g) groups.push(g = { name: c.group, items: [] }); g.items.push(c); });
+        const summary = { error: 'Er zijn problemen gevonden die verbinden kunnen verhinderen.', warn: 'Alles werkt, maar er zijn aandachtspunten.', ok: 'Alles ziet er goed uit.', info: 'Alles ziet er goed uit.' }[r.overall];
+        $('#diag-body').innerHTML = `<div class="diag-summary diag-${DIAG[r.overall].cls}">${icon(DIAG[r.overall].icon, 20)} ${summary}</div>` +
+          groups.map(g => `<div class="diag-group"><h4>${esc(g.name)}</h4>${g.items.map(c => `
+            <div class="diag-row"><span class="diag-ic diag-${DIAG[c.status].cls}" title="${DIAG[c.status].label}">${icon(DIAG[c.status].icon, 14)}</span>
+              <div class="diag-txt"><b>${esc(c.label)}</b><span>${esc(c.detail)}</span>${c.fix ? `<em>${esc(c.fix)}</em>` : ''}</div></div>`).join('')}</div>`).join('');
+        $('#diag-when').textContent = 'Gecontroleerd om ' + new Date(r.checked_at * 1000).toLocaleTimeString('nl-NL');
+      } catch (e) { toast(e.message, true); }
+      $('#diag-run').disabled = false;
+    };
+    $('#diag-run').onclick = run;
+    run();
   }
 
   // ======================= Deploy =======================

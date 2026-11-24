@@ -69,6 +69,26 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
 .nav a.active { background: var(--brand); color: #fff; box-shadow: 0 4px 14px rgba(14,142,233,.35); }
 .nav a .count { margin-left: auto; font-size: 11px; background: rgba(255,255,255,.12); padding: 1px 7px; border-radius: 10px; }
 .nav a .count:empty { display: none; }
+.nav a .count.count-err { background: var(--danger); color: #fff; }
+.nav a .count.count-warn { background: var(--warn); color: #1a1a1a; }
+.side-ver { font-size: 11px; opacity: .45; padding: 10px 12px 0; margin-top: auto; }
+.side .side-ver + .side-foot { margin-top: 8px; }
+.diag-summary { display: flex; gap: 10px; align-items: center; margin: 16px 20px 4px; padding: 12px 14px; border-radius: 10px; font-weight: 600; }
+.diag-summary.diag-ok, .diag-summary.diag-info { background: rgba(24,178,107,.1); color: var(--ok); }
+.diag-summary.diag-warn { background: rgba(242,165,22,.12); color: #b77800; }
+.diag-summary.diag-err { background: rgba(229,72,77,.1); color: var(--danger); }
+.diag-group { padding: 6px 20px 10px; }
+.diag-group h4 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 14px 0 6px; }
+.diag-row { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.diag-row:last-child { border-bottom: 0; }
+.diag-ic { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; flex: none; color: #fff; }
+.diag-ic.diag-ok { background: var(--ok); }
+.diag-ic.diag-warn { background: var(--warn); }
+.diag-ic.diag-err { background: var(--danger); }
+.diag-ic.diag-info { background: var(--panel-2); color: var(--muted); border: 1px solid var(--line); }
+.diag-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.diag-txt span { color: var(--muted); word-break: break-word; }
+.diag-txt em { font-style: normal; font-size: 13px; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: 7px; padding: 6px 9px; margin-top: 4px; }
 .nav a.active .count { background: rgba(255,255,255,.25); }
 .side-foot { margin-top: auto; border-top: 1px solid rgba(255,255,255,.08); padding-top: 12px; display: flex; align-items: center; gap: 10px; }
 .avatar {

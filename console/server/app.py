@@ -46,6 +46,9 @@ KEY_FILE = os.environ.get("SERVER_KEY_FILE", "/server-data/id_ed25519.pub")
 PUBLIC_URL = os.environ.get("PUBLIC_URL", "")              # e.g. https://support.richrdj.nl
 INSTALLER_AUTO_UPDATE = os.environ.get("INSTALLER_AUTO_UPDATE", "1") == "1"
 GITHUB_REPO = os.environ.get("INSTALLER_GITHUB_REPO", "rustdesk/rustdesk")
+APP_VERSION = os.environ.get("APP_VERSION", "dev")
+INTERNAL_ID_SERVER = os.environ.get("INTERNAL_ID_SERVER", "id-server")
+INTERNAL_RELAY_SERVER = os.environ.get("INTERNAL_RELAY_SERVER", "relay-server")
 TRUST_PROXY = os.environ.get("TRUST_PROXY", "1") == "1"
 ONLINE_WINDOW = 45          # seconds since last heartbeat to count as online
 TOKEN_TTL = 60 * 60 * 24 * 30
@@ -224,12 +227,62 @@ def app_name():
     return get_setting("app_name") or APP_NAME
 
 
+_SECRET = None
+
+
+def secret_key():
+    """Per-installation key (in the data volume) used to keep stored device passwords unreadable in the DB."""
+    global _SECRET
+    if _SECRET is None:
+        path = os.path.join(DATA_DIR, "secret.key")
+        if not os.path.isfile(path):
+            with open(path, "wb") as f:
+                f.write(secrets.token_bytes(32))
+            os.chmod(path, 0o600)
+        with open(path, "rb") as f:
+            _SECRET = f.read()
+    return _SECRET
+
+
+def _keystream(nonce, n):
+    out = b""
+    i = 0
+    while len(out) < n:
+        out += hmac.new(secret_key(), nonce + i.to_bytes(4, "big"), hashlib.sha256).digest()
+        i += 1
+    return out[:n]
+
+
+def seal(text):
+    if not text:
+        return ""
+    data = text.encode()
+    nonce = secrets.token_bytes(12)
+    ct = bytes(a ^ b for a, b in zip(data, _keystream(nonce, len(data))))
+    tag = hmac.new(secret_key(), nonce + ct, hashlib.sha256).hexdigest()[:32]
+    return "v1:%s:%s:%s" % (nonce.hex(), ct.hex(), tag)
+
+
+def unseal(blob):
+    try:
+        _, nonce, ct, tag = (blob or "").split(":")
+        nonce, ct = bytes.fromhex(nonce), bytes.fromhex(ct)
+        if not hmac.compare_digest(tag, hmac.new(secret_key(), nonce + ct, hashlib.sha256).hexdigest()[:32]):
+            return ""
+        return bytes(a ^ b for a, b in zip(ct, _keystream(nonce, len(ct)))).decode()
+    except Exception:
+        return ""
+
+
 def setup_needed():
     return not q1("SELECT id FROM users LIMIT 1")
 
 
 def init_db():
     db().executescript(SCHEMA)
+    cols = {r["name"] for r in q("PRAGMA table_info(devices)")}
+    if "access_password" not in cols:
+        ex("ALTER TABLE devices ADD COLUMN access_password TEXT DEFAULT ''")
     if setup_needed() and ADMIN_PASSWORD:
         ex("INSERT INTO users(username,display_name,password_hash,is_admin,status,created_at) VALUES(?,?,?,?,?,?)",
            (ADMIN_USER, "Administrator", hash_password(ADMIN_PASSWORD), 1, 1, now()))
@@ -274,6 +327,15 @@ def server_info():
         "filename_ok": bool(host),
         "host_private": is_private_host(host),
     }
+
+
+def is_private_ip(ip):
+    import ipaddress
+    try:
+        a = ipaddress.ip_address(ip)
+        return a.is_private or a.is_loopback or a.is_link_local
+    except ValueError:
+        return False
 
 
 def is_private_host(host):
@@ -336,6 +398,7 @@ def device_out(d, groups=None):
         "tags": tags, "group_id": d["group_id"], "group": g["name"] if g else "",
         "group_color": g["color"] if g else "", "online": is_online(d), "conns": d["conns"] or 0,
         "last_seen": d["last_seen"], "created_at": d["created_at"],
+        "has_password": bool(d.get("access_password")),
     }
 
 
@@ -399,11 +462,24 @@ class Handler(BaseHTTPRequestHandler):
 
     # ---- plumbing -----------------------------------------------------
     def client_ip(self):
-        if TRUST_PROXY:
-            fwd = self.headers.get("X-Forwarded-For") or self.headers.get("X-Real-IP")
+        """Real client IP. Proxy headers are only trusted when the direct peer is a private address
+        (nginx / Cloudflare Tunnel on the LAN or Docker network), so internet clients can't spoof them."""
+        peer = self.client_address[0]
+        if peer.startswith("::ffff:"):
+            peer = peer[7:]
+        if TRUST_PROXY and is_private_ip(peer):
+            for hdr in ("X-Real-IP", "CF-Connecting-IP"):
+                v = (self.headers.get(hdr) or "").strip()
+                if v:
+                    return v
+            fwd = self.headers.get("X-Forwarded-For")
             if fwd:
-                return fwd.split(",")[0].strip()
-        return self.client_address[0]
+                return fwd.split(",")[-1].strip()  # right-most = added by our proxy
+        return peer
+
+    def behind_proxy(self):
+        return bool(self.headers.get("X-Real-IP") or self.headers.get("X-Forwarded-For")
+                    or self.headers.get("CF-Connecting-IP"))
 
     def body_json(self):
         n = int(self.headers.get("Content-Length") or 0)
@@ -787,7 +863,7 @@ def api_health(h):
 # ==========================================================================
 @route("GET", "/console-api/meta")
 def c_meta(h):
-    return {"name": app_name(), "setup": setup_needed()}
+    return {"name": app_name(), "setup": setup_needed(), "version": APP_VERSION}
 
 
 @route("POST", "/console-api/login")
@@ -890,9 +966,26 @@ def c_device_patch(h, did):
         fields["group_id"] = b["group_id"] or None
     if "tags" in b:
         fields["tags"] = json.dumps([str(t) for t in (b["tags"] or [])])
+    if "access_password" in b:
+        pw = str(b["access_password"] or "")
+        if len(pw) > 128:
+            raise HttpError(400, "Wachtwoord is te lang")
+        fields["access_password"] = seal(pw)
+        log("Unattended password %s for %s by %s" % ("set" if pw else "cleared", did, h.user["username"]))
     if fields:
         ex("UPDATE devices SET %s WHERE id=?" % ",".join("%s=?" % k for k in fields), (*fields.values(), did))
     return device_out(q1("SELECT * FROM devices WHERE id=?", (did,)))
+
+
+@route("GET", "/console-api/devices/([^/]+)/password", auth="web")
+def c_device_password(h, did):
+    d = q1("SELECT access_password FROM devices WHERE id=?", (did,))
+    if not d:
+        raise HttpError(404, "Apparaat niet gevonden")
+    pw = unseal(d["access_password"])
+    if pw:
+        log("Unattended password used for %s by %s (%s)" % (did, h.user["username"], h.client_ip()))
+    return {"password": pw}
 
 
 @route("DELETE", "/console-api/devices/([^/]+)", auth="admin")
@@ -1420,6 +1513,128 @@ def c_portal_put(h):
     if "pinned" in b:
         set_setting("installer_version", str(b["pinned"] or "").strip())
     return {"ok": True}
+
+
+# ==========================================================================
+# Diagnose
+# ==========================================================================
+def tcp_check(host, port, timeout=3.0):
+    import socket
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True, ""
+    except socket.gaierror:
+        return None, "naam onbekend"
+    except Exception as e:
+        return False, str(e) or e.__class__.__name__
+
+
+@route("GET", "/console-api/diagnose", auth="admin")
+def c_diagnose(h):
+    import shutil
+    import socket
+    checks = []
+
+    def add(group, label, status, detail="", fix=""):
+        checks.append({"group": group, "label": label, "status": status, "detail": detail, "fix": fix})
+
+    si = server_info()
+    pub = public_url()
+    # --- Portal & console
+    add("Console", "Versie", "info", "%s %s" % (app_name(), APP_VERSION))
+    if not pub:
+        add("Console", "Publieke URL", "error", "Niet ingesteld",
+            "Vul de publieke URL in onder Downloadportaal, bijv. https://support.jouwdomein.nl")
+    elif not pub.startswith("https://"):
+        add("Console", "Publieke URL", "warn", pub,
+            "Gebruik HTTPS (nginx, Cloudflare Tunnel of een eigen certificaat), anders gaan logins onversleuteld.")
+    else:
+        add("Console", "Publieke URL", "ok", pub)
+    peer = h.client_address[0]
+    if h.behind_proxy():
+        trusted = is_private_ip(peer[7:] if peer.startswith("::ffff:") else peer)
+        add("Console", "Reverse proxy", "ok" if trusted else "warn",
+            "Via proxy %s, jouw IP: %s" % (peer, h.client_ip()),
+            "" if trusted else "Proxyheaders komen van een publiek adres en worden genegeerd.")
+    else:
+        add("Console", "Reverse proxy", "info", "Directe verbinding (geen proxy), jouw IP: %s" % h.client_ip())
+    t = tls_info()
+    add("Console", "Eigen HTTPS-certificaat", "ok" if t["active"] else ("warn" if t["configured"] else "info"),
+        "Actief" if t["active"] else ("Opgeslagen, herstart nodig" if t["configured"] else "Niet gebruikt (prima achter nginx/Cloudflare)"))
+    try:
+        du = shutil.disk_usage(DATA_DIR)
+        free_gb = du.free / 1e9
+        add("Console", "Opslag", "ok" if free_gb > 2 else "warn", "%.1f GB vrij" % free_gb,
+            "" if free_gb > 2 else "Weinig vrije ruimte voor installers en database.")
+    except Exception:
+        pass
+
+    # --- ID / relay server
+    host = si["host"]
+    if not host:
+        add("ID-server", "Adres", "error", "Niet ingesteld", "Vul onder Instellingen het adres van de ID-server in.")
+    elif si.get("host_private"):
+        add("ID-server", "Adres", "error", "%s is een intern adres" % host,
+            "Gebruik een publieke DNS-naam die direct naar je server wijst (geen Cloudflare-proxy).")
+    else:
+        try:
+            ips = sorted({a[4][0] for a in socket.getaddrinfo(host, 21116, proto=socket.IPPROTO_TCP)})
+            add("ID-server", "Adres", "ok", "%s → %s" % (host, ", ".join(ips)))
+            cf = [ip for ip in ips if ip.startswith(("104.16.", "104.17.", "104.18.", "104.19.", "104.20.", "104.21.",
+                                                       "172.64.", "172.65.", "172.66.", "172.67.", "188.114."))]
+            if cf:
+                add("ID-server", "Cloudflare-proxy", "error", "%s wijst naar Cloudflare (%s)" % (host, cf[0]),
+                    "Zet de proxy (oranje wolk) uit voor deze naam of gebruik een aparte naam zonder proxy.")
+        except Exception as e:
+            add("ID-server", "Adres", "error", "%s kan niet worden opgezocht (%s)" % (host, e),
+                "Controleer het DNS-record.")
+    add("ID-server", "Publieke key", "ok" if si["key"] else "error",
+        ("Gevonden (%s…)" % si["key"][:8]) if si["key"] else "Niet gevonden",
+        "" if si["key"] else "Controleer of de ID-server draait en het volume server-data gedeeld is met de console.")
+    for name, port, label in ((INTERNAL_ID_SERVER, 21116, "ID-server draait"), (INTERNAL_RELAY_SERVER, 21117, "Relay-server draait")):
+        ok, err = tcp_check(name, port)
+        if ok:
+            add("ID-server", label, "ok", "%s:%d bereikbaar binnen Docker" % (name, port))
+        elif ok is None:
+            add("ID-server", label, "info", "Niet te testen (%s niet gevonden; draait de console buiten de stack?)" % name)
+        else:
+            add("ID-server", label, "error", "%s:%d niet bereikbaar (%s)" % (name, port, err),
+                "Controleer in Portainer of de container draait en bekijk de logs.")
+    if host and not si.get("host_private"):
+        for port in (21115, 21116, 21117):
+            ok, err = tcp_check(host, port)
+            add("ID-server", "Poort %d via %s" % (port, host), "ok" if ok else "warn",
+                "Bereikbaar" if ok else "Niet bereikbaar vanaf de server zelf (%s)" % err,
+                "" if ok else "Kan komen doordat je router geen hairpin-NAT doet. Test van buitenaf of de port forwarding "
+                              "klopt (TCP 21115-21117 en UDP 21116).")
+
+    # --- Installers
+    meta = inst_meta()
+    enabled = [k for k in PLATFORM_MAP if inst_enabled(k, meta)]
+    avail = [k for k in enabled if inst_file(k, meta)[0]]
+    st = "ok" if enabled and len(avail) == len(enabled) else ("warn" if avail else "error")
+    add("Downloads", "Installers", st, "%d van %d beschikbaar%s" % (
+        len(avail), len(enabled), (", nieuwste v" + get_setting("installer_latest")) if get_setting("installer_latest") else ""),
+        "" if st == "ok" else "Klik op Downloadportaal → Nu bijwerken, of upload een eigen installer.")
+    if SYNC_STATE.get("last_error"):
+        add("Downloads", "Laatste update", "warn", SYNC_STATE["last_error"],
+            "Controleer of de console internettoegang heeft naar github.com.")
+    if si["host"]:
+        add("Downloads", "Windows-autoconfiguratie", "ok", "De .exe stelt zichzelf in op %s" % si["host"])
+
+    # --- Devices
+    devs = q("SELECT last_seen FROM devices WHERE last_seen IS NOT NULL")
+    if not devs:
+        add("Apparaten", "Heartbeats", "warn", "Nog geen enkel apparaat heeft zich gemeld",
+            "Start de app op een computer met de configuratie van deze server.")
+    else:
+        last = max(d["last_seen"] for d in devs)
+        online = sum(1 for d in devs if now() - d["last_seen"] < ONLINE_WINDOW)
+        add("Apparaten", "Heartbeats", "ok" if now() - last < 300 else "warn",
+            "%d online, laatste melding %d s geleden" % (online, now() - last))
+    rank = {"error": 0, "warn": 1, "ok": 2, "info": 3}
+    worst = min((c["status"] for c in checks), key=lambda x: rank[x])
+    return {"checks": checks, "overall": worst, "checked_at": now()}
 
 
 # ==========================================================================
