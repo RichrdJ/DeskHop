@@ -71,8 +71,6 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
 .nav a .count:empty { display: none; }
 .nav a .count.count-err { background: var(--danger); color: #fff; }
 .nav a .count.count-warn { background: var(--warn); color: #1a1a1a; }
-.side-ver { font-size: 11px; opacity: .45; padding: 10px 12px 0; margin-top: auto; }
-.side .side-ver + .side-foot { margin-top: 8px; }
 .diag-summary { display: flex; gap: 10px; align-items: center; margin: 16px 20px 4px; padding: 12px 14px; border-radius: 10px; font-weight: 600; }
 .diag-summary.diag-ok, .diag-summary.diag-info { background: rgba(24,178,107,.1); color: var(--ok); }
 .diag-summary.diag-warn { background: rgba(242,165,22,.12); color: #b77800; }
@@ -351,3 +349,7 @@ tr.sel td { background: var(--brand-50) !important; }
 @media (max-width: 520px) {
   .g-4 { grid-template-columns: 1fr; }
 }
+
+/* version: subtle */
+.brand small .ver { opacity: .7; font-variant-numeric: tabular-nums; }
+.login-ver { margin-top: 28px; text-align: center; font-size: 11.5px; color: var(--muted); opacity: .7; letter-spacing: .02em; }

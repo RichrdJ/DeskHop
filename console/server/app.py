@@ -574,7 +574,7 @@ class Handler(BaseHTTPRequestHandler):
         with open(full, "rb") as f:
             data = f.read()
         if full.endswith("index.html"):
-            data = data.replace(b"__APP_NAME__", html_escape(app_name()).encode())
+            data = data.replace(b"__APP_NAME__", html_escape(app_name()).encode()).replace(b"__APP_VERSION__", html_escape(APP_VERSION).encode())
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(data)))

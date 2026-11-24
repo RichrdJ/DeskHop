@@ -4,6 +4,10 @@
   const $ = (s, el) => (el || document).querySelector(s);
   const $$ = (s, el) => Array.from((el || document).querySelectorAll(s));
   const APP = window.APP_NAME && window.APP_NAME !== '__APP_NAME__' ? window.APP_NAME : 'DeskHop';
+  const VER = (function (v) {
+    if (!v || v === '__APP_VERSION__') return '';
+    return /^\d/.test(v) ? 'v' + v : v;
+  })(window.APP_VERSION);
   const COLORS = ['#0e8ee9', '#7c5cff', '#18b26b', '#f2a516', '#e5484d', '#ec4899', '#14b8a6', '#64748b'];
 
   const S = { token: null, me: null, devices: [], groups: [], timer: null, filterGroup: 'all', filterState: 'all', q: '' };
@@ -195,6 +199,7 @@
             <div class="field"><label>Wachtwoord</label><input class="input" type="password" name="password" autocomplete="current-password" required></div>
             <button class="btn primary">Inloggen ${icon('arrow', 16)}</button>
             <div class="err-msg"></div>
+            ${VER ? `<div class="login-ver">${esc(APP)} ${esc(VER)}</div>` : ''}
           </form>
         </div>
       </div>`;
@@ -229,7 +234,7 @@
     $('#root').innerHTML = `
       <div class="shell">
         <aside class="side">
-          <div class="brand"><div class="brand-logo">${icon('arrow', 20)}</div><div><b>${esc(APP)}</b><small>Remote Support</small></div></div>
+          <div class="brand"><div class="brand-logo">${icon('arrow', 20)}</div><div><b>${esc(APP)}</b><small>Remote Support${VER ? ` · <span class="ver" title="Versie ${esc(VER)}">${esc(VER)}</span>` : ''}</small></div></div>
           <nav class="nav">
             <a href="#/remote" data-p="remote">${icon('remote')} Remote Control</a>
             <a href="#/computers" data-p="computers">${icon('monitor')} Computers <span class="count" id="nav-online"></span></a>
@@ -241,7 +246,6 @@
             <a href="#/settings" data-p="settings">${icon('settings')} Instellingen</a>
             ${me.is_admin ? `<a href="#/status" data-p="status">${icon('shield')} Diagnose <span class="count" id="nav-diag"></span></a>` : ''}
           </nav>
-          <div class="side-ver" id="side-ver"></div>
           <div class="side-foot">
             <div class="avatar">${esc(initials(me.display_name))}</div>
             <div class="who"><b>${esc(me.display_name)}</b><small>${me.is_admin ? 'Beheerder' : 'Technicus'}</small></div>
@@ -264,7 +268,6 @@
       $('#theme').innerHTML = icon(document.documentElement.dataset.theme === 'dark' ? 'sun' : 'moon');
     };
     $('#menu').onclick = () => $('.shell').classList.toggle('nav-open');
-    fetch('/console-api/meta').then(r => r.json()).then(m => { $('#side-ver').textContent = APP + ' ' + (m.version || ''); }).catch(() => {});
     if (me.is_admin) api('GET', '/diagnose').then(r => diagBadge(r.overall)).catch(() => {});
     route();
   }
