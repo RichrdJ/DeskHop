@@ -1372,7 +1372,7 @@ def p_info(h):
         "name": app_name(), "portal": portal_settings(),
         "platforms": [platform_out(k, meta) for k in PLATFORM_MAP if inst_enabled(k, meta) and k not in ADMIN_ONLY],
         "config_string": si["config_string"] if si["host"] else "",
-        "host": si["host"], "windows_auto_config": si["filename_ok"],
+        "host": si["host"], "windows_auto_config": si["filename_ok"], "public_url": public_url(),
     }
 
 

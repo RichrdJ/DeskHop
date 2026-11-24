@@ -120,7 +120,9 @@
 
     let cta = '', note = '';
     if (os === 'mobile') {
-      const addr = location.host + (location.pathname.length > 1 ? location.pathname : '');
+      // Prefer the configured public URL (the address customers know), fall back to what the browser used.
+      const addr = String(info.public_url || '').replace(/^https?:\/\//, '').replace(/\/+$/, '') ||
+        (location.host + (location.pathname.length > 1 ? location.pathname : ''));
       cta = '<div class="notice">' + ic('laptop') + '<div><b>Open deze pagina op je computer</b>' +
         '<p>' + esc(app) + ' werkt op Windows en Mac. Ga op de computer waarop je hulp nodig hebt naar:</p>' +
         '<span class="addr">' + esc(addr) + '</span></div></div>';
