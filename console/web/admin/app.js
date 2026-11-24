@@ -658,7 +658,7 @@
       const s = d.sync;
       $('#sync-state').innerHTML = s.running ? `<span class="badge brand">${icon('sync', 12)} ${esc(s.progress || 'Bezig…')}</span>`
         : s.last_error ? `<span class="badge warn" title="${esc(s.last_error)}">Fout bij bijwerken</span>` : (d.latest ? 'Nieuwste versie: v' + esc(d.latest) : '');
-      $('#dl-alert').innerHTML = '';
+      $('#dl-alert').innerHTML = d.server.host_private ? `<div class="alert">${icon('info', 18)}<div><b>Het adres van de ID-server (${esc(d.server.host)}) is een intern adres.</b> Klanten buiten je netwerk kunnen daar niet bij, en de Windows-download krijgt dit adres mee. Vul onder <a href="#/settings">Instellingen</a> een publieke DNS-naam in die direct naar je server wijst, bijv. support.richrdj.nl, en zorg dat de poorten 21115–21117 (21116 ook UDP) open staan.</div></div>` : '';
       const avail = d.platforms.filter(p => p.enabled && p.available).length;
       $('#dl-stats').innerHTML = [
         ['globe', `<a href="${esc(portalUrl)}" target="_blank" rel="noopener" style="font-size:15px">${esc(portalUrl.replace(/^https?:\/\//, ''))}</a>`, 'Publiek downloadportaal'],
@@ -720,6 +720,7 @@
     try { info = await api('GET', '/deploy'); } catch (e) { toast(e.message, true); return; }
     const missing = !info.host || !info.key;
     el.innerHTML = `
+      ${info.host_private ? `<div class="alert">${icon('info', 18)}<div><b>Het adres van de ID-server (${esc(info.host)}) is een intern adres.</b> Klanten buiten je netwerk kunnen daar niet bij, en de Windows-download krijgt dit adres mee. Vul onder <a href="#/settings">Instellingen</a> een publieke DNS-naam in die direct naar je server wijst, bijv. support.richrdj.nl, en zorg dat de poorten 21115–21117 (21116 ook UDP) open staan.</div></div>` : ''}
       ${missing ? `<div class="alert">${icon('info', 18)}<div><b>Configuratie incompleet.</b> ${!info.host ? 'Er is nog geen publiek serveradres ingesteld. ' : ''}${!info.key ? 'De publieke key van de ID-server is nog niet gevonden (start de stack volledig op). ' : ''}Stel dit in via ${S.me.is_admin ? '<a href="#/settings">Instellingen</a>' : 'een beheerder'}.</div></div>` : ''}
       <div class="grid g-2">
         <div class="card"><div class="card-h">${icon('server', 18)}<h3>Serverconfiguratie</h3></div><div class="card-b">
@@ -860,16 +861,23 @@ $app = Get-ChildItem "$env:ProgramFiles" -Filter '*.exe' -Recurse -Depth 1 | Whe
               <div class="field"><label>Bedrijfsnaam</label><input class="input" name="company" placeholder="Bijv. RichrdJ Support"></div>
             </div>
             <div class="field"><label>Publieke URL van het portaal</label><input class="input" name="public_url" value="${esc(location.origin)}" required><span class="hint">Waar klanten de download vinden, bijv. https://support.richrdj.nl</span></div>
-            <div class="field"><label>Adres ID-server</label><input class="input" name="host" value="${esc(location.hostname)}" required><span class="hint">DNS-naam of IP die <b>direct</b> naar deze server wijst (poorten 21115–21117)</span></div>
+            <div class="field"><label>Adres ID-server</label><input class="input" name="host" value="" required placeholder="support.jouwdomein.nl"><span class="hint">DNS-naam of IP die <b>direct</b> naar deze server wijst (poorten 21115–21117)</span></div>
             <button class="btn primary">Installatie afronden ${icon('arrow', 16)}</button>
             <div class="err-msg"></div>
           </form>
         </div>
       </div>`;
+    const sfx = $('#sf');
+    const hostFromUrl = () => { try { return new URL(sfx.public_url.value).hostname; } catch (e) { return ''; } };
+    let hostEdited = false;
+    sfx.host.value = hostFromUrl();
+    sfx.host.addEventListener('input', () => { hostEdited = true; });
+    sfx.public_url.addEventListener('input', () => { if (!hostEdited) sfx.host.value = hostFromUrl(); });
     $('#sf').onsubmit = async e => {
       e.preventDefault();
       const f = e.target; $('.err-msg', f).textContent = '';
       if (f.password.value !== f.password2.value) { $('.err-msg', f).textContent = 'De wachtwoorden zijn niet gelijk'; return; }
+      if (/^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(f.host.value.trim()) && !confirm('Het adres van de ID-server is een intern adres. Klanten buiten je netwerk kunnen daar niet bij. Toch doorgaan?')) return;
       const body = {}; ['username', 'display_name', 'password', 'app_name', 'company', 'public_url', 'host'].forEach(k => body[k] = f[k].value);
       try {
         const r = await api('POST', '/setup', body);

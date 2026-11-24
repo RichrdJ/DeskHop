@@ -272,7 +272,23 @@ def server_info():
         "config_string": config_string,
         "filename_windows": win_filename(cfg) if host else "",
         "filename_ok": bool(host),
+        "host_private": is_private_host(host),
     }
+
+
+def is_private_host(host):
+    """True for addresses customers outside the LAN can never reach."""
+    import ipaddress
+    h = (host or "").split(":")[0].strip().lower()
+    if not h:
+        return False
+    if h in ("localhost",) or h.endswith((".local", ".lan", ".home", ".internal")):
+        return True
+    try:
+        ip = ipaddress.ip_address(h)
+        return ip.is_private or ip.is_loopback or ip.is_link_local
+    except ValueError:
+        return False
 
 
 def brand_slug():
@@ -1316,7 +1332,7 @@ def c_installers(h):
         "auto": get_setting("installer_auto", "1" if INSTALLER_AUTO_UPDATE else "0") == "1",
         "downloads_30d": q1("SELECT COUNT(*) c FROM downloads WHERE created_at>?", (since,))["c"],
         "recent": recent, "portal": portal_settings(), "public_url": public_url(), "app_name": app_name(),
-        "server": {k: v for k, v in server_info().items() if k in ("host", "filename_ok", "filename_windows")},
+        "server": {k: v for k, v in server_info().items() if k in ("host", "filename_ok", "filename_windows", "host_private")},
     }
 
 
