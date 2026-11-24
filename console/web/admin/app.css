@@ -258,6 +258,11 @@ tr.sel td { background: var(--brand-50) !important; }
   display: flex; gap: 10px; align-items: center; max-width: 380px; animation: pop .18s ease-out;
 }
 .toast.err { background: var(--danger); color: #fff; }
+.toast.noapp { background: var(--panel); color: var(--text); border: 1px solid var(--line); align-items: flex-start; max-width: 400px; }
+.toast.noapp > .ic { color: var(--brand); margin-top: 2px; }
+.toast.noapp small { display: block; color: var(--muted); margin-top: 8px; line-height: 1.4; }
+.toast.noapp .icon-btn { width: 26px; height: 26px; margin: -4px -6px 0 0; color: var(--muted); }
+.noapp-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 
 /* ---------- code boxes ---------- */
 .codebox { display: flex; align-items: stretch; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; background: var(--panel-2); }

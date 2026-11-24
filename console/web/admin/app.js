@@ -113,8 +113,36 @@
     if (!id) { toast('Vul een partner-ID in', true); return; }
     let url = 'rustdesk://connection/new/' + encodeURIComponent(id);
     if (pw) url += '?password=' + encodeURIComponent(pw);
+    // If the app is installed the browser hands the link over and this window loses focus.
+    // If nothing happens within a few seconds, the app is most likely not installed here.
+    let handedOver = false;
+    const mark = () => { handedOver = true; };
+    window.addEventListener('blur', mark, { once: true });
+    document.addEventListener('visibilitychange', mark, { once: true });
     window.location.href = url;
     toast(APP + ' wordt geopend voor ' + fmtId(id));
+    setTimeout(() => {
+      window.removeEventListener('blur', mark);
+      document.removeEventListener('visibilitychange', mark);
+      if (!handedOver && document.hasFocus()) noAppHint();
+    }, 2500);
+  }
+
+  function noAppHint() {
+    if ($('#noapp')) return;
+    const el = document.createElement('div');
+    el.id = 'noapp';
+    el.className = 'toast noapp';
+    el.innerHTML = `${icon('info', 20)}<div><b>Opent er niets?</b><br>Dan staat ${esc(APP)} nog niet op deze computer.
+      <div class="noapp-actions"><a class="btn sm primary" href="/" target="_blank" rel="noopener">${icon('download', 14)} ${esc(APP)} downloaden</a>
+      <a class="btn sm" href="#/deploy">Serverinstelling</a></div>
+      <small>Installeer de app, plak één keer de serverinstelling (Uitrollen → Configuratie-string) en klik opnieuw op Verbinden.</small></div>
+      <button class="icon-btn" aria-label="Sluiten">${icon('x', 16)}</button>`;
+    $('#toasts').appendChild(el);
+    const close = () => el.parentNode && el.parentNode.removeChild(el);
+    $('button', el).onclick = close;
+    $$('a', el).forEach(a => a.addEventListener('click', () => setTimeout(close, 100)));
+    setTimeout(close, 20000);
   }
 
   // ---------------- theme ----------------
