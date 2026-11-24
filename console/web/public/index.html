@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hulp op afstand · __APP_NAME__</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/public/public.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap top-in">
+      <div class="brand"><div class="logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></div><b id="company">__APP_NAME__</b></div>
+      <span class="top-tag">Support</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="wrap hero-in">
+        <div class="hero-text">
+          <h1 id="title">Hulp op afstand</h1>
+          <p id="intro" class="lead"></p>
+          <div class="cta" id="cta"></div>
+          <p class="small" id="other-link"><a href="#downloads">Alle downloads</a></p>
+        </div>
+        <div class="hero-card" aria-hidden="true">
+          <div class="mock">
+            <div class="mock-bar"><i></i><i></i><i></i></div>
+            <div class="mock-body">
+              <div class="mock-label">Jouw ID</div>
+              <div class="mock-id">123 456 789</div>
+              <div class="mock-label">Eenmalig wachtwoord</div>
+              <div class="mock-pw">x7k2pq</div>
+              <div class="mock-status"><span></span> Klaar voor verbinding</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="wrap steps-sec">
+      <h2>Zo werkt het</h2>
+      <ol class="steps" id="steps"></ol>
+    </section>
+
+    <section class="wrap" id="config-sec" hidden>
+      <div class="card config">
+        <div>
+          <h3>Serverinstelling</h3>
+          <p>Op dit apparaat moet de app één keer onze server leren kennen. Kopieer de code, open in de app <b>Instellingen → Netwerk → ID/Relay-server</b> en klik op het <b>import</b>-icoon (plakken vanaf klembord).</p>
+        </div>
+        <div class="codebox"><code id="cfg"></code><button id="cfg-copy" type="button">Kopiëren</button></div>
+      </div>
+    </section>
+
+    <section class="wrap" id="downloads">
+      <h2>Alle downloads</h2>
+      <div class="dl-grid" id="dl-grid"></div>
+    </section>
+
+    <section class="wrap" id="contact-sec" hidden>
+      <div class="card contact" id="contact"></div>
+    </section>
+  </main>
+
+  <footer class="wrap foot">
+    <span>🔒 Verbindingen zijn end-to-end versleuteld en alleen mogelijk met jouw toestemming.</span>
+    <span class="muted" id="foot-brand"></span>
+  </footer>
+
+  <script src="/public/public.js"></script>
+</body>
+</html>

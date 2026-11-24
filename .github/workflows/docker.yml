@@ -1,0 +1,103 @@
+name: Build & push Docker image
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python syntax check
+        run: python -m py_compile console/server/app.py console/server/demo_seed.py
+
+      - name: Smoke test (client API + console)
+        run: |
+          mkdir -p /tmp/nx
+          DATA_DIR=/tmp/nx ADMIN_PASSWORD=admin12345 WEB_DIR=console/web INSTALLER_AUTO_UPDATE=0 python console/server/app.py &
+          sleep 2
+          DATA_DIR=/tmp/nx python console/server/demo_seed.py http://localhost:21114 admin admin12345
+          curl -sf http://localhost:21114/ | grep -q "Hulp op afstand"
+          curl -sf http://localhost:21114/admin | grep -q "Console"
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Mirror ID/relay server image to GHCR
+        if: github.event_name != 'pull_request'
+        run: |
+          IMAGE="ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')-server"
+          docker buildx imagetools create -t "$IMAGE:latest" docker.io/rustdesk/rustdesk-server:latest
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            docker buildx imagetools create -t "$IMAGE:${GITHUB_REF_NAME#v}" docker.io/rustdesk/rustdesk-server:latest
+          fi
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,format=short
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./console
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare release notes
+        run: |
+          IMAGE="ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
+          VERSION="${GITHUB_REF_NAME#v}"
+          cat > notes.md <<NOTES
+          ## Docker image
+          \`\`\`
+          ${IMAGE}:${VERSION}
+          ${IMAGE}:latest
+          \`\`\`
+
+          ## Installeren
+          1. Download \`stack.yml\` hieronder en maak er een stack van in Portainer (of \`docker stack deploy -c stack.yml deskhop\`).
+          2. Zet \`PUBLIC_URL\`, \`SERVER_HOST\`, \`ADMIN_PASSWORD\`, \`DESKHOP_IMAGE=${IMAGE}:${VERSION}\` en \`DESKHOP_SERVER_IMAGE=${IMAGE}-server:${VERSION}\`.
+          3. Portaal: \`PUBLIC_URL/\` · Beheer: \`PUBLIC_URL/admin\`
+          NOTES
+          sed -i 's/^          //' notes.md
+      - uses: softprops/action-gh-release@v2
+        with:
+          body_path: notes.md
+          generate_release_notes: true
+          files: |
+            stack.yml
+            .env.example
