@@ -58,20 +58,30 @@
 
       <section class="codes" id="codes" aria-labelledby="codes-h">
         <h2 id="codes-h">Hier vind je straks je ID en wachtwoord</h2>
-        <p class="codes-lead">Zodra je <span class="app-name">__APP_NAME__</span> opent, zie je twee gegevens. Die lees je voor. Meer hoef je niet te doen.</p>
+        <p class="codes-lead">Zodra je <span class="app-name">__APP_NAME__</span> opent, staan je ID en wachtwoord <b>linksboven</b> in het venster. Die lees je voor. De rest van het venster heb je niet nodig.</p>
         <figure class="show">
-          <div class="win" aria-hidden="true">
+          <div class="win win2" aria-hidden="true">
             <div class="win-bar"><span class="dots"><i></i><i></i><i></i></span><span class="win-name app-name">__APP_NAME__</span><span class="tag">Voorbeeld</span></div>
-            <div class="win-body">
-              <div class="field"><span class="f-label">ID</span><span class="sk sk-id"><i></i><i></i><i></i></span><span class="f-hint">Jouw eigen ID verschijnt hier</span></div>
-              <div class="field"><span class="f-label">Eenmalig wachtwoord</span><span class="sk sk-pw"><i></i></span><span class="f-hint">Jouw eigen wachtwoord verschijnt hier</span></div>
-              <div class="win-status"><span></span>Gereed voor verbinding</div>
+            <div class="win2-body">
+              <div class="pane-l">
+                <span class="pin">Dit lees je voor</span>
+                <span class="sk sk-title"><i></i></span>
+                <div class="fld"><span class="f-label">ID</span><span class="sk sk-id"><i></i><i></i><i></i></span></div>
+                <div class="fld"><span class="f-label">Wachtwoord</span><span class="sk sk-pw"><i></i></span></div>
+              </div>
+              <div class="pane-r">
+                <span class="sk sk-input"><i></i></span>
+                <span class="sk sk-btn"><i></i></span>
+                <span class="sk sk-tiles"><i></i><i></i></span>
+                <span class="skip">Dit deel heb je niet nodig</span>
+              </div>
             </div>
+            <div class="win-status"><span></span>Klaar</div>
           </div>
           <figcaption class="aside">
             <ul class="legend">
-              <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-id"/></svg><span><b>Jouw ID</b>Een reeks cijfers. Lees ze rustig één voor één voor.</span></li>
-              <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-key"/></svg><span><b>Eenmalig wachtwoord</b>Een korte code. Na elke sessie krijg je automatisch een nieuwe.</span></li>
+              <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-id"/></svg><span><b>ID</b>Linksboven, een reeks cijfers in grote letters. Lees ze rustig één voor één voor.</span></li>
+              <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-key"/></svg><span><b>Eenmalig wachtwoord</b>Direct onder het ID, een korte code van letters of cijfers. In het Engels heet dit <i>One-time password</i>.</span></li>
             </ul>
             <p class="note"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-info"/></svg><span><b>Dit plaatje is een voorbeeld.</b> Op deze website staat geen code. Jouw eigen ID en wachtwoord zie je pas in het programma, nadat je het hebt geopend.</span></p>
           </figcaption>

@@ -41,7 +41,7 @@
         ? 'Klik op de downloadknop en open het bestand. Je hoeft niets te installeren.' + smart
         : 'Klik op de downloadknop, open het bestand en koppel de app eenmalig aan onze server (zie hieronder).' + smart];
     } else if (os === 'mac') {
-      first = ['dl', 'Download en installeer', 'Open de .dmg en sleep ' + esc(app) + ' naar <b>Apps</b>. Geef bij de eerste start toestemming voor <b>Schermopname</b> en <b>Toegankelijkheid</b>.'];
+      first = ['dl', 'Download en installeer', 'Open de .dmg en sleep ' + esc(app) + ' naar <b>Apps</b>. Zie je links een gekleurd vlak over toestemming (<i>Permissions</i>)? Klik op <b>Configure</b> en zet de app aan bij <b>Schermopname</b> en <b>Toegankelijkheid</b>.'];
     } else {
       first = ['laptop', 'Gebruik je computer', 'Het programma werkt op Windows en macOS. Open deze pagina op de computer waarop je hulp nodig hebt.'];
     }

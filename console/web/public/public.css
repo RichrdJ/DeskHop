@@ -213,3 +213,25 @@ body.is-error .needs-data { display: none; }
   * { transition: none !important; animation: none !important; }
   html { scroll-behavior: auto; }
 }
+
+/* ---- example window, modelled on the real two-pane app window ---- */
+.win2-body { display: grid; grid-template-columns: 44% 1fr; gap: 6px; padding: 6px; }
+.pane-l { position: relative; background: var(--card); border-radius: 14px; padding: 30px 14px 16px; box-shadow: inset 0 0 0 2px var(--accent); }
+.pane-l .fld { border-left: 3px solid var(--accent); padding-left: 10px; margin-top: 14px; }
+.pane-l .f-label { font-size: 10.5px; }
+.pane-l .sk { margin: 6px 0 0; height: 16px; }
+.pane-l .sk-id { gap: 5px; height: 20px; }
+.pane-l .sk-pw i { width: 70%; }
+.sk-title { height: 12px !important; margin: 0 !important; }
+.sk-title i { width: 75%; }
+.pin { position: absolute; top: -10px; left: 12px; font-size: 11px; font-weight: 700; background: var(--accent); color: var(--on); padding: 3px 9px; border-radius: 999px; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,.12); }
+.pane-r { position: relative; border-radius: 14px; padding: 16px 12px; display: grid; gap: 10px; align-content: start; border: 1.5px dashed var(--line, rgba(127,127,127,.35)); }
+.pane-r .sk { margin: 0; }
+.sk-input { height: 26px !important; }
+.sk-input i { flex: 1; }
+.sk-btn { justify-content: flex-end; height: 18px !important; }
+.sk-btn i { width: 40%; }
+.sk-tiles { height: 52px !important; margin-top: 6px !important; }
+.sk-tiles i { flex: 1; border-radius: 10px; }
+.skip { position: absolute; inset: auto 8px 10px 8px; text-align: center; font-size: 11.5px; font-weight: 600; color: var(--ink); }
+.pane-r > .sk { opacity: .45; }
