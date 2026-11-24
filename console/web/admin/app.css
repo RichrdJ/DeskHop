@@ -383,3 +383,25 @@ tr.sel td { background: var(--brand-50) !important; }
 /* version: subtle */
 .brand small .ver { opacity: .7; font-variant-numeric: tabular-nums; }
 .login-ver { margin-top: 28px; text-align: center; font-size: 11.5px; color: var(--muted); opacity: .7; letter-spacing: .02em; }
+
+/* ---------- focused connect page ---------- */
+.focus-wrap { min-height: calc(100vh - 64px - 66px); display: grid; place-items: center; padding: 20px 0 8vh; }
+.connect-focus {
+  width: 100%; max-width: 460px; padding: 36px 36px 28px; text-align: center; position: relative; overflow: hidden;
+  border: 1px solid rgba(14,142,233,.35);
+  background: linear-gradient(180deg, var(--brand-50) 0%, var(--panel) 45%);
+  box-shadow: 0 20px 50px rgba(14,142,233,.16), var(--shadow);
+}
+.connect-focus::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: var(--brand); }
+.cf-ic { width: 56px; height: 56px; border-radius: 16px; display: inline-grid; place-items: center; background: var(--brand); color: #fff; box-shadow: 0 8px 20px rgba(14,142,233,.35); margin-bottom: 16px; }
+.connect-focus h2 { font-size: 22px; margin-bottom: 6px; }
+.connect-focus > .muted { margin: 0 0 24px; }
+.connect-focus form { display: grid; gap: 14px; text-align: left; }
+.cf-field { display: grid; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.cf-field .input { height: 52px; background: var(--panel); font-size: 17px; }
+.cf-id { font-size: 22px !important; letter-spacing: .08em; font-weight: 650; text-align: center; }
+.cf-id::placeholder { opacity: .35; font-weight: 500; }
+.cf-pw { text-align: center; letter-spacing: .1em; }
+.cf-go { height: 52px; font-size: 16px; margin-top: 6px; box-shadow: 0 8px 20px rgba(14,142,233,.3); }
+.cf-foot { display: flex; gap: 6px; align-items: center; justify-content: center; font-size: 12.5px; margin: 18px 0 0; }
+@media (max-width: 520px) { .connect-focus { padding: 28px 20px 22px; } }

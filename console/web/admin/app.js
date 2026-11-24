@@ -307,68 +307,26 @@
   // ======================= Remote Control =======================
   async function pageRemote(el) {
     el.innerHTML = `
-      <div class="card connect-card">
-        <div class="cc-head">
-          <span class="cc-ic">${icon('remote', 22)}</span>
-          <div><h3>Verbinden met een computer</h3><span class="muted">Vul het ID in dat de klant voorleest. ${esc(APP)} opent dan op deze computer.</span></div>
+      <div class="focus-wrap">
+        <div class="card connect-focus">
+          <span class="cf-ic">${icon('remote', 26)}</span>
+          <h2>Verbinden met een computer</h2>
+          <p class="muted">Vul het ID en wachtwoord in die de klant voorleest.</p>
+          <form id="cf" autocomplete="off">
+            <label class="cf-field"><span>ID</span><input class="input mono cf-id" id="pid" placeholder="123 456 789" inputmode="numeric" autocomplete="off" data-lpignore="true"></label>
+            <label class="cf-field"><span>Wachtwoord</span><input class="input cf-pw" id="ppw" type="password" autocomplete="new-password" data-lpignore="true"></label>
+            <button class="btn primary cf-go">${icon('arrow', 18)} Verbinden</button>
+          </form>
+          <p class="cf-foot muted">${icon('info', 14)} ${esc(APP)} opent op deze computer.</p>
         </div>
-        <form class="cc-form" id="cf" autocomplete="off">
-          <label class="cc-field cc-id"><span>ID</span><input class="input mono" id="pid" placeholder="123 456 789" inputmode="numeric" autocomplete="off" data-lpignore="true"></label>
-          <label class="cc-field"><span>Wachtwoord <em>optioneel</em></span><input class="input" id="ppw" type="password" autocomplete="new-password" data-lpignore="true"></label>
-          <button class="btn primary">${icon('arrow', 16)} Verbinden</button>
-        </form>
-      </div>
-      <div class="grid g-4" style="margin-top:18px" id="stats"></div>
-      <div class="grid g-3" style="margin-top:18px;grid-template-columns:2fr 1fr 1fr" id="row2"></div>
-      <div class="grid g-2" style="margin-top:18px" id="row3"></div>`;
+      </div>`;
     $('#cf').onsubmit = e => { e.preventDefault(); connect($('#pid').value, $('#ppw').value); };
     $('#pid').addEventListener('input', e => {
       const v = e.target.value;
       if (/^[\d\s]*$/.test(v)) e.target.value = fmtId(v.replace(/\s+/g, ''));
     });
     $('#pid').focus();
-    const load = async () => {
-      const [st, devs, sess] = await Promise.all([api('GET', '/stats'), loadDevices(), api('GET', '/sessions?limit=8')]);
-      $('#stats').innerHTML = [
-        ['monitor', st.online, 'Online van ' + st.devices + ' apparaten'],
-        ['activity', st.active_sessions, 'Actieve sessies'],
-        ['clock', st.sessions_24h, 'Sessies laatste 24 uur'],
-        ['users', st.users, 'Gebruikers'],
-      ].map(s => `<div class="card stat"><div class="s-ic">${icon(s[0], 22)}</div><div><b>${s[1]}</b><span>${esc(s[2])}</span></div></div>`).join('');
-      const max = Math.max(1, ...st.sessions_per_day.map(d => d.count));
-      const plat = Object.entries(st.platforms).sort((a, b) => b[1] - a[1]);
-      const ptot = plat.reduce((a, b) => a + b[1], 0) || 1;
-      $('#row2').innerHTML = `
-        <div class="card"><div class="card-h"><h3>Sessies per dag</h3><span class="spacer"></span><span class="muted">14 dagen</span></div>
-          <div class="card-b"><div class="bars">${st.sessions_per_day.map(d => `<div style="height:${Math.max(2, d.count / max * 100)}%" data-tip="${esc(d.day.slice(5))}: ${d.count}"></div>`).join('')}</div>
-          <div class="bars-x">${st.sessions_per_day.map((d, i) => `<span>${i % 2 ? '' : esc(d.day.slice(8))}</span>`).join('')}</div></div></div>
-        <div class="card"><div class="card-h"><h3>Platformen</h3></div><div class="card-b">
-          ${plat.length ? plat.map(p => `<div class="plat-row">${icon(osIcon(p[0]), 16)}<span style="width:70px">${esc(p[0])}</span><div class="bar"><i style="width:${p[1] / ptot * 100}%"></i></div><b>${p[1]}</b></div>`).join('') : '<div class="muted">Nog geen apparaten</div>'}
-        </div></div>
-        <div class="card"><div class="card-h"><h3>Snel starten</h3></div><div class="card-b">
-          <a class="btn" style="width:100%;margin-bottom:10px" href="#/deploy">${icon('rocket', 16)} Client uitrollen</a>
-          <a class="btn" style="width:100%;margin-bottom:10px" href="#/computers">${icon('plus', 16)} Computer toevoegen</a>
-          ${S.me.is_admin ? `<a class="btn" style="width:100%" href="#/users">${icon('users', 16)} Gebruiker toevoegen</a>` : ''}
-        </div></div>`;
-      const online = devs.filter(d => d.online).slice(0, 8);
-      $('#row3').innerHTML = `
-        <div class="card"><div class="card-h"><h3>Online computers</h3><span class="spacer"></span><a href="#/computers">Alles bekijken</a></div>
-          ${online.length ? `<table class="tbl"><tbody>${online.map(d => `
-            <tr><td><div class="dev-name"><div class="dev-ic">${icon(osIcon(d.os))}<span class="dot on"></span></div><div><b>${esc(d.name)}</b><small class="mono">${esc(fmtId(d.id))}</small></div></div></td>
-            <td class="hide-sm muted">${esc(d.username || '')}</td>
-            <td class="actions"><button class="btn sm primary" data-connect="${esc(d.id)}">${icon('arrow', 14)} Verbinden</button></td></tr>`).join('')}</tbody></table>`
-          : `<div class="empty">${icon('monitor', 40)}<div>Geen computers online</div></div>`}
-        </div>
-        <div class="card"><div class="card-h"><h3>Recente sessies</h3><span class="spacer"></span><a href="#/sessions">Alles bekijken</a></div>
-          ${sess.length ? `<table class="tbl"><tbody>${sess.map(s => `
-            <tr><td><b>${esc(s.device_name || fmtId(s.device_id))}</b><br><small class="muted">door ${esc(s.peer_name || fmtId(s.peer_id) || s.ip || 'onbekend')}</small></td>
-            <td class="hide-sm muted">${esc(s.type_name)}</td>
-            <td class="actions">${s.active ? '<span class="badge ok"><span class="dot on"></span>Actief</span>' : `<span class="muted">${ago(s.started_at)}</span>`}</td></tr>`).join('')}</tbody></table>`
-          : `<div class="empty">${icon('activity', 40)}<div>Nog geen sessies</div></div>`}
-        </div>`;
-    };
-    try { await load(); } catch (e) { toast(e.message, true); }
-    S.timer = setInterval(() => load().catch(() => {}), 15000);
+    loadDevices().catch(() => {});   // keeps the online counter in the sidebar up to date
   }
 
   // ======================= Computers & Contacts =======================
