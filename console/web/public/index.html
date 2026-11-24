@@ -5,71 +5,139 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Hulp op afstand · __APP_NAME__</title>
   <meta name="robots" content="noindex">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f3f4f6" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#14171c" media="(prefers-color-scheme: dark)">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/public/public.css">
+  <link rel="stylesheet" href="/public/public.css?v=__APP_VERSION__">
 </head>
 <body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+    <symbol id="i-dl" viewBox="0 0 24 24"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 21h16"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><path d="M22 16.900v3a2 2 0 0 1-2.200 2 19.800 19.800 0 0 1-8.600-3.100 19.500 19.500 0 0 1-6-6A19.800 19.800 0 0 1 2.100 4.200 2 2 0 0 1 4.100 2h3a2 2 0 0 1 2 1.700c.100.900.400 1.800.700 2.700a2 2 0 0 1-.500 2.100L8 9.800a16 16 0 0 0 6 6l1.300-1.300a2 2 0 0 1 2.100-.400c.900.300 1.800.600 2.700.700a2 2 0 0 1 1.700 2z"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/></symbol>
+    <symbol id="i-id" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.500" cy="11" r="2"/><path d="M5.800 16c.600-1.400 1.600-2 2.700-2s2.100.600 2.700 2M14 10h4M14 14h3"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="m11 12 8.500-8.500M16 6.500l2.500 2.500M13.500 9l2 2"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.600v.100"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7.500a4 4 0 0 1 8 0V11"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 5 6v5.500c0 4.300 2.900 7.700 7 9.500 4.100-1.800 7-5.200 7-9.500V6z"/><path d="m9 12 2.200 2.200L15.200 10"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.500 9.500h5v5h-5z"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 3 5 13.500h6L10 21l8-10.500h-6z"/></symbol>
+    <symbol id="i-mac" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+    <symbol id="i-laptop" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M2 20h20"/></symbol>
+    <symbol id="i-win" viewBox="0 0 24 24"><path d="M3 5.500 10.500 4.500v7H3zM12 4.300 21 3v8.500h-9zM3 12.500h7.500v7L3 18.500zM12 12.500h9V21l-9-1.300z"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6.500A2.500 2.500 0 0 1 7.500 4H15"/></symbol>
+    <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 4 2.500 20h19z"/><path d="M12 10v4.500M12 17.400v.100"/></symbol>
+    <symbol id="i-hop" viewBox="0 0 24 24"><path d="M4 17c2-7 6-10.500 12-10.500"/><path d="m12.500 3 4 3.500-3.500 4"/></symbol>
+  </defs></svg>
+
+  <a class="skip" href="#main">Naar de inhoud</a>
+
   <header class="top">
-    <div class="wrap top-in">
-      <div class="brand"><div class="logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></div><b id="company">__APP_NAME__</b></div>
-      <span class="top-tag">Support</span>
+    <div class="wrap">
+      <div class="brand"><span class="logo" aria-hidden="true"><svg class="i" viewBox="0 0 24 24"><use href="#i-hop"/></svg></span><span id="company">__APP_NAME__</span></div>
+      <a class="call" id="top-call" hidden></a>
     </div>
   </header>
 
-  <main>
-    <section class="hero">
-      <div class="wrap hero-in">
-        <div class="hero-text">
-          <h1 id="title">Hulp op afstand</h1>
-          <p id="intro" class="lead"></p>
-          <div class="cta" id="cta"></div>
-          <p class="small" id="other-link"><a href="#downloads">Alle downloads</a></p>
-        </div>
-        <div class="hero-card" aria-hidden="true">
-          <div class="mock">
-            <div class="mock-bar"><i></i><i></i><i></i></div>
-            <div class="mock-body">
-              <div class="mock-label">Jouw ID</div>
-              <div class="mock-id">123 456 789</div>
-              <div class="mock-label">Eenmalig wachtwoord</div>
-              <div class="mock-pw">x7k2pq</div>
-              <div class="mock-status"><span></span> Klaar voor verbinding</div>
+  <main id="main">
+    <div class="lead-grid">
+      <section class="hero" aria-labelledby="title">
+        <p class="eyebrow">Ondersteuning op afstand</p>
+        <h1 id="title">Hulp op afstand</h1>
+        <p class="lead" id="intro"></p>
+        <div class="cta" id="cta"><span class="btn-skeleton" aria-hidden="true"></span></div>
+        <p class="cta-note" id="cta-note" role="status"></p>
+        <ul class="assure">
+          <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-check"/></svg>Versleutelde verbinding</li>
+          <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-check"/></svg>Alleen met jouw toestemming</li>
+          <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-check"/></svg>Op elk moment te stoppen</li>
+        </ul>
+      </section>
+
+      <section class="codes" id="codes" aria-labelledby="codes-h">
+        <h2 id="codes-h">Hier vind je straks je ID en wachtwoord</h2>
+        <p class="codes-lead">Zodra je <span class="app-name">__APP_NAME__</span> opent, zie je twee gegevens. Die lees je voor. Meer hoef je niet te doen.</p>
+        <figure class="show">
+          <div class="win" aria-hidden="true">
+            <div class="win-bar"><span class="dots"><i></i><i></i><i></i></span><span class="win-name app-name">__APP_NAME__</span><span class="tag">Voorbeeld</span></div>
+            <div class="win-body">
+              <div class="field"><span class="f-label">ID</span><span class="sk sk-id"><i></i><i></i><i></i></span><span class="f-hint">Jouw eigen ID verschijnt hier</span></div>
+              <div class="field"><span class="f-label">Eenmalig wachtwoord</span><span class="sk sk-pw"><i></i></span><span class="f-hint">Jouw eigen wachtwoord verschijnt hier</span></div>
+              <div class="win-status"><span></span>Gereed voor verbinding</div>
             </div>
           </div>
+          <figcaption class="aside">
+            <ul class="legend">
+              <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-id"/></svg><span><b>Jouw ID</b>Een reeks cijfers. Lees ze rustig één voor één voor.</span></li>
+              <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-key"/></svg><span><b>Eenmalig wachtwoord</b>Een korte code. Na elke sessie krijg je automatisch een nieuwe.</span></li>
+            </ul>
+            <p class="note"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-info"/></svg><span><b>Dit plaatje is een voorbeeld.</b> Op deze website staat geen code. Jouw eigen ID en wachtwoord zie je pas in het programma, nadat je het hebt geopend.</span></p>
+          </figcaption>
+        </figure>
+      </section>
+    </div>
+
+    <section class="sec wrap needs-data" id="how" aria-labelledby="how-h">
+      <div class="sec-head"><span class="kicker">Zo werkt het</span><h2 id="how-h">In drie stappen geholpen</h2><p>Er wordt pas meegekeken als jij dat toestaat.</p></div>
+      <ol class="steps" id="steps"><li class="step ph" aria-hidden="true"></li><li class="step ph" aria-hidden="true"></li><li class="step ph" aria-hidden="true"></li></ol>
+    </section>
+
+    <section class="sec wrap" id="mac-sec" aria-labelledby="mac-title" hidden>
+      <div class="sec-head"><span class="kicker">Alleen de eerste keer</span><h2 id="mac-title">Koppel de app aan onze server</h2><p>Zo weet de app met wie hij verbinding moet maken. Dit hoef je maar één keer te doen.</p></div>
+      <div class="pair">
+        <ol class="mini">
+          <li>Klik op <b>Kopieer code</b>.</li>
+          <li>Open de app en ga naar <b>Instellingen → Netwerk</b>. Klik op <b>Ontgrendel</b> als dat gevraagd wordt.</li>
+          <li>Klik bij <b>ID/Relay-server</b> op het <b>plak-icoon</b> en daarna op <b>OK</b>.</li>
+        </ol>
+        <div class="code-box">
+          <span class="code-label" id="cfg-label">Servercode</span>
+          <div class="code-row">
+            <code class="code" id="cfg" aria-labelledby="cfg-label"></code>
+            <button type="button" class="copy" id="cfg-copy"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-copy"/></svg><span id="cfg-copy-label" aria-live="polite">Kopieer code</span></button>
+          </div>
+          <p class="code-foot">Deze code is geen wachtwoord. Je hoeft hem niet voor te lezen.</p>
         </div>
       </div>
     </section>
 
-    <section class="wrap steps-sec">
-      <h2>Zo werkt het</h2>
-      <ol class="steps" id="steps"></ol>
+    <section class="sec wrap" aria-labelledby="trust-h">
+      <div class="sec-head"><span class="kicker">Veilig</span><h2 id="trust-h">Jij houdt de regie</h2></div>
+      <ul class="trust">
+        <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-lock"/></svg><b>Versleuteld</b><p>Alle verbindingen zijn end-to-end versleuteld.</p></li>
+        <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-shield"/></svg><b>Jij beslist</b><p>Zonder jouw ID en wachtwoord kan niemand meekijken.</p></li>
+        <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-stop"/></svg><b>Altijd stoppen</b><p>Sluit het programma en de verbinding is direct verbroken.</p></li>
+        <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-bolt"/></svg><b>Licht en snel</b><p>Binnen een minuut klaar. Op Windows hoef je niets te installeren.</p></li>
+      </ul>
     </section>
 
-    <section class="wrap" id="config-sec" hidden>
-      <div class="card config">
-        <div>
-          <h3>Serverinstelling</h3>
-          <p>Op dit apparaat moet de app één keer onze server leren kennen. Kopieer de code, open in de app <b>Instellingen → Netwerk → ID/Relay-server</b> en klik op het <b>import</b>-icoon (plakken vanaf klembord).</p>
-        </div>
-        <div class="codebox"><code id="cfg"></code><button id="cfg-copy" type="button">Kopiëren</button></div>
+    <section class="sec wrap needs-data" id="downloads" aria-labelledby="dl-h">
+      <div class="sec-head"><span class="kicker">Voor elke computer</span><h2 id="dl-h">Alle downloads</h2></div>
+      <div class="dl-list" id="dl-grid"></div>
+    </section>
+
+    <section class="sec wrap" id="faq-sec" aria-labelledby="faq-h">
+      <div class="sec-head"><span class="kicker">Goed om te weten</span><h2 id="faq-h">Veelgestelde vragen</h2></div>
+      <div class="faq">
+        <details><summary>Welke code moet ik doorgeven?</summary><p>Na het openen van het programma zie je een <b>ID</b> (een reeks cijfers) en een <b>eenmalig wachtwoord</b>. Geef deze twee door aan je supportmedewerker. Het plaatje op deze pagina is alleen een voorbeeld en bevat géén echte code.</p></details>
+        <details><summary>Kan de supportmedewerker later nog meekijken?</summary><p>Nee. Het eenmalige wachtwoord verandert na elke sessie en zonder dat het programma open staat kan niemand verbinden.</p></details>
+        <details><summary>Hoe stop ik de sessie?</summary><p>Klik in het venster van het programma op <b>Verbreken</b>, of sluit het programma. De verbinding stopt dan direct.</p></details>
+        <details><summary>Mijn Mac vraagt om toestemming</summary><p>macOS vraagt de eerste keer toestemming voor <b>Schermopname</b> en <b>Toegankelijkheid</b>. Open <b>Systeeminstellingen → Privacy en beveiliging</b>, zet de app bij beide aan en start hem opnieuw.</p></details>
+        <details><summary>Windows waarschuwt bij het openen</summary><p>Zie je een blauw scherm met “Windows heeft uw pc beschermd”? Klik op <b>Meer info</b> en daarna op <b>Toch uitvoeren</b>.</p></details>
       </div>
     </section>
 
-    <section class="wrap" id="downloads">
-      <h2>Alle downloads</h2>
-      <div class="dl-grid" id="dl-grid"></div>
-    </section>
-
-    <section class="wrap" id="contact-sec" hidden>
-      <div class="card contact" id="contact"></div>
+    <section class="sec wrap" id="contact-sec" aria-labelledby="contact-h" hidden>
+      <div class="contact" id="contact"></div>
     </section>
   </main>
 
-  <footer class="wrap foot">
-    <span>🔒 Verbindingen zijn end-to-end versleuteld en alleen mogelijk met jouw toestemming.</span>
-    <span class="muted" id="foot-brand"></span>
+  <footer class="foot">
+    <div class="wrap"><span id="foot-brand"></span><span>Beveiligde verbinding · alleen met jouw toestemming</span></div>
   </footer>
 
-  <script src="/public/public.js"></script>
+  <script src="/public/public.js?v=__APP_VERSION__"></script>
 </body>
 </html>

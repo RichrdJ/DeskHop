@@ -2,23 +2,17 @@
   'use strict';
   const $ = s => document.querySelector(s);
   const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const ICON = {
-    windows: '<path d="M3 5.5 10.5 4.5v7H3zM12 4.3 21 3v8.5h-9zM3 12.5h7.5v7L3 18.5zM12 12.5h9V21l-9-1.3z"/>',
-    mac: '<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>',
-    linux: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3M13 15h4"/>',
-    android: '<rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/>',
-    dl: '<path d="M12 3v12m0 0-5-5m5 5 5-5M4 21h16"/>',
-  };
-  const ic = (n, s) => '<svg width="' + (s || 20) + '" height="' + (s || 20) + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + (ICON[n] || ICON.dl) + '</svg>';
-  const mb = b => b ? (b / 1048576).toFixed(0) + ' MB' : '';
+  // Icons live in the SVG sprite at the top of index.html.
+  const ic = n => '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-' + n + '"/></svg>';
+  const mb = b => b ? Math.round(b / 1048576) + ' MB' : '';
+  const tel = p => String(p).replace(/[^+\d]/g, '');
 
   function detectOS() {
     const ua = navigator.userAgent || '';
     if (/Android|iPhone|iPad|iPod/i.test(ua)) return 'mobile';
     if (/Windows/i.test(ua)) return 'windows';
     if (/Macintosh|Mac OS X/i.test(ua)) return 'mac';
-    if (/Linux|X11/i.test(ua)) return 'other';
-    return 'windows';
+    return 'other';
   }
 
   // Apple Silicon vs Intel: Chromium exposes the CPU architecture, otherwise the GPU name gives it away.
@@ -38,81 +32,151 @@
     return 'arm'; // every Mac sold since 2020
   }
 
-  function stepsFor(os, auto) {
-    const s = [];
+  // Step texts are trusted markup; the app name is escaped before it goes in.
+  function stepsFor(os, auto, app) {
+    const smart = ' Waarschuwt Windows met een blauw scherm? Klik op <b>Meer info</b> en daarna op <b>Toch uitvoeren</b>.';
+    let first;
     if (os === 'windows') {
-      s.push(['Download en start', auto ? 'Open het gedownloade bestand. Installeren is niet nodig, de app is direct klaar voor gebruik.' : 'Open het gedownloade bestand en voer daarna één keer de serverinstelling hieronder in.']);
+      first = ['dl', 'Download en open', auto
+        ? 'Klik op de downloadknop en open het bestand. Je hoeft niets te installeren.' + smart
+        : 'Klik op de downloadknop, open het bestand en koppel de app eenmalig aan onze server (zie hieronder).' + smart];
     } else if (os === 'mac') {
-      s.push(['Download en installeer', 'Open de .dmg, sleep de app naar de map Apps en sta bij de eerste start <i>Schermopname</i> en <i>Toegankelijkheid</i> toe. Voer daarna de serverinstelling hieronder in.']);
+      first = ['dl', 'Download en installeer', 'Open de .dmg en sleep ' + esc(app) + ' naar <b>Apps</b>. Geef bij de eerste start toestemming voor <b>Schermopname</b> en <b>Toegankelijkheid</b>.'];
     } else {
-      s.push(['Gebruik een computer', 'De app is beschikbaar voor Windows en macOS. Open deze pagina op de computer waarop je hulp nodig hebt.']);
+      first = ['laptop', 'Gebruik je computer', 'Het programma werkt op Windows en macOS. Open deze pagina op de computer waarop je hulp nodig hebt.'];
     }
-    s.push(['Geef je ID en wachtwoord door', 'De app toont een ID en een eenmalig wachtwoord. Geef deze telefonisch of per chat door aan je supportmedewerker.']);
-    s.push(['Accepteer de verbinding', 'Je ziet een melding zodra de supportmedewerker verbindt. Je kunt de sessie altijd zelf beëindigen.']);
-    return s;
+    return [
+      first,
+      ['id', 'Geef je ID en wachtwoord door', 'Het programma toont <b>jouw eigen</b> ID en een eenmalig wachtwoord. Lees die voor via de telefoon of chat.'],
+      ['shield', 'Accepteer en ontspan', 'Je ziet wanneer de supportmedewerker meekijkt. Je kunt de verbinding op elk moment zelf verbreken.'],
+    ];
   }
 
-  fetch('/public-api/info').then(r => r.json()).then(async info => {
+  let copyTimer;
+  async function copyText(text, btn) {
+    try { await navigator.clipboard.writeText(text); }
+    catch (e) {
+      const t = document.createElement('textarea'); t.value = text; t.setAttribute('readonly', '');
+      t.style.cssText = 'position:fixed;opacity:0'; document.body.appendChild(t); t.select();
+      try { document.execCommand('copy'); } catch (e2) { /* ignore */ }
+      document.body.removeChild(t);
+    }
+    const label = $('#cfg-copy-label');
+    label.textContent = 'Gekopieerd';
+    btn.classList.add('done');
+    clearTimeout(copyTimer);
+    copyTimer = setTimeout(() => { label.textContent = 'Kopieer code'; btn.classList.remove('done'); }, 2200);
+  }
+
+  function downloadStarted() {
+    const n = $('#cta-note');
+    n.className = 'cta-note started';
+    n.innerHTML = ic('check') + '<span><b>Download gestart.</b> Open het bestand zodra het klaar is. Je vindt het in je map Downloads.</span>';
+  }
+
+  function showError() {
+    document.body.classList.add('is-error');
+    $('#intro').textContent = '';
+    $('#cta-note').textContent = '';
+    $('#cta').innerHTML = '<div class="notice err" role="alert">' + ic('warn') +
+      '<div><b>De downloads konden niet worden geladen</b><p>Controleer je internetverbinding en probeer het opnieuw.</p>' +
+      '<button type="button" class="retry" id="retry">Opnieuw proberen</button></div></div>';
+    $('#retry').onclick = () => location.reload();
+  }
+
+  fetch('/public-api/info').then(r => {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }).then(async info => {
     const p = info.portal || {};
-    document.title = (p.title || 'Hulp op afstand') + ' · ' + (p.company || info.name);
-    $('#company').textContent = p.company || info.name;
-    $('#foot-brand').textContent = '© ' + new Date().getFullYear() + ' ' + (p.company || info.name);
-    $('#title').textContent = p.title || 'Hulp op afstand';
-    $('#intro').textContent = p.intro || '';
+    const app = info.name || 'de app';
+    const company = p.company || app;
+    const title = p.title || 'Hulp op afstand';
+    document.title = title + ' · ' + company;
+    $('#company').textContent = company;
+    document.querySelectorAll('.app-name').forEach(el => { el.textContent = app; });
+    $('#foot-brand').textContent = '© ' + new Date().getFullYear() + ' ' + company;
+    $('#title').textContent = title;
+    $('#intro').textContent = p.intro ||
+      'Download ' + app + ', open het programma en lees je ID en wachtwoord voor aan je supportmedewerker. Er wordt pas verbinding gemaakt als jij dat toestaat.';
+
+    if (p.phone) {
+      const tc = $('#top-call');
+      tc.hidden = false;
+      tc.href = 'tel:' + tel(p.phone);
+      tc.setAttribute('aria-label', 'Bel ons: ' + p.phone);
+      tc.innerHTML = ic('phone') + '<span>Bel ons</span><span class="num">' + esc(p.phone) + '</span>';
+    }
 
     const os = detectOS();
-    const plats = info.platforms || [];
+    const plats = Array.isArray(info.platforms) ? info.platforms : [];
+    const anyAvailable = plats.some(x => x.available);
     const byOs = plats.filter(x => x.os === os && x.available);
     let prefer = 'win_exe';
     if (os === 'mac') prefer = (await macArch()) === 'arm' ? 'mac_arm' : 'mac_x64';
     const primary = byOs.find(x => x.key === prefer) || byOs[0];
-    const osName = { windows: 'Windows', mac: 'macOS' }[os] || 'dit apparaat';
-    const altLabel = { mac_x64: 'Mac met Intel-processor?', mac_arm: 'Mac met Apple-chip?', win_msi: 'MSI-installer' };
+    const osName = { windows: 'Windows', mac: 'Mac' }[os];
+    const altLabel = { mac_x64: 'Mac met Intel-processor?', mac_arm: 'Mac met Apple-chip?' };
 
-    let cta = '';
-    if (primary) {
-      cta += `<a class="btn primary" href="${esc(primary.url)}"><span class="ico">${ic('dl', 18)}</span><span class="t">Download ${esc(info.name)} voor ${esc(osName)}<small>${esc(primary.arch)} · ${mb(primary.size)}</small></span></a>`;
+    let cta = '', note = '';
+    if (os === 'mobile') {
+      const addr = location.host + (location.pathname.length > 1 ? location.pathname : '');
+      cta = '<div class="notice">' + ic('laptop') + '<div><b>Open deze pagina op je computer</b>' +
+        '<p>' + esc(app) + ' werkt op Windows en Mac. Ga op de computer waarop je hulp nodig hebt naar:</p>' +
+        '<span class="addr">' + esc(addr) + '</span></div></div>';
+    } else if (primary) {
+      const sub = [app, mb(primary.size)].filter(Boolean).join(' · ');
+      cta = '<a class="btn primary" data-dl href="' + esc(primary.url) + '"><span class="ico">' + ic('dl') + '</span>' +
+        '<span class="t">Download voor ' + esc(osName) + '<small>' + esc(sub) + '</small></span></a>';
       byOs.filter(x => x !== primary).slice(0, 1).forEach(x => {
-        cta += `<a class="btn secondary" href="${esc(x.url)}"><span class="t">${esc(altLabel[x.key] || x.label)}<small>${esc(x.arch)}</small></span></a>`;
+        cta += '<a class="alt" data-dl href="' + esc(x.url) + '">' + esc(altLabel[x.key] || x.label) + '</a>';
       });
+      note = (os === 'windows' ? 'Geen installatie nodig. ' : '') + 'Andere computer? <a href="#downloads">Bekijk alle downloads</a>';
+    } else if (anyAvailable) {
+      cta = '<a class="btn primary" href="#downloads"><span class="ico">' + ic('dl') + '</span>' +
+        '<span class="t">Kies je download<small>Beschikbaar voor Windows en Mac</small></span></a>';
     } else {
-      cta = `<a class="btn primary" href="#downloads"><span class="ico">${ic('dl', 18)}</span><span class="t">Kies je download<small>Beschikbaar voor Windows en macOS</small></span></a>`;
+      cta = '<div class="notice">' + ic('info') + '<div><b>Nog geen downloads beschikbaar</b>' +
+        '<p>Probeer het later opnieuw of neem contact op met ' + esc(company) + '.</p></div></div>';
     }
     $('#cta').innerHTML = cta;
+    const noteEl = $('#cta-note');
+    noteEl.className = 'cta-note';
+    noteEl.innerHTML = note;
 
-    const auto = os === 'windows' && info.windows_auto_config && primary && primary.key === 'win_exe';
-    $('#steps').innerHTML = stepsFor(os, auto).map(s => `<li><b>${esc(s[0])}</b><p>${s[1]}</p></li>`).join('');
+    const auto = !!(os === 'windows' && info.windows_auto_config && primary && primary.key === 'win_exe');
+    $('#steps').innerHTML = stepsFor(os, auto, app).map(s =>
+      '<li class="step"><span class="s-ic">' + ic(s[0]) + '</span><b class="h">' + esc(s[1]) + '</b><p>' + s[2] + '</p></li>').join('');
 
-    $('#config-sec').hidden = !(info.config_string && !auto);
-    if (info.config_string && !auto) {
-      $('#config-sec').hidden = false;
+    // One-time server pairing: needed on Mac (and on Windows when the self-configuring download isn't available)
+    const needCfg = !!(info.config_string && (os === 'mac' || (os === 'windows' && !auto)));
+    $('#mac-sec').hidden = !needCfg;
+    if (needCfg) {
+      $('#mac-title').textContent = 'Koppel ' + app + ' aan onze server';
       $('#cfg').textContent = info.config_string;
-      $('#cfg-copy').onclick = async () => {
-        try { await navigator.clipboard.writeText(info.config_string); }
-        catch (e) {
-          const t = document.createElement('textarea'); t.value = info.config_string; document.body.appendChild(t); t.select();
-          document.execCommand('copy'); t.remove();
-        }
-        $('#cfg-copy').textContent = 'Gekopieerd ✓';
-        setTimeout(() => { $('#cfg-copy').textContent = 'Kopiëren'; }, 2000);
-      };
+      $('#cfg-copy').onclick = e => copyText(info.config_string, e.currentTarget);
     }
 
-    const osIcon = { windows: 'windows', mac: 'mac' };
-    $('#dl-grid').innerHTML = plats.length ? plats.map(x => `
-      <a class="dl ${x.available ? '' : 'off'}" href="${x.available ? esc(x.url) : '#'}">
-        <span class="oi">${ic(osIcon[x.os])}</span>
-        <span><b>${esc(x.label)}</b><small>${esc(x.arch)}${x.available ? ' · ' + mb(x.size) + (x.version ? ' · v' + esc(x.version) : '') : ' · binnenkort beschikbaar'}</small></span>
-        <span class="arrow">${ic('dl', 18)}</span>
-      </a>`).join('') : '<p class="muted">Er zijn nog geen downloads beschikbaar.</p>';
+    $('#dl-grid').innerHTML = plats.length ? plats.map(x => {
+      const rec = !!(primary && x.key === primary.key);
+      const inner = '<span class="oi">' + ic(x.os === 'windows' ? 'win' : 'mac') + '</span>' +
+        '<span class="m">' + (rec ? '<span class="rec-tag">Aanbevolen</span>' : '') + '<b>' + esc(x.label) + '</b>' +
+        '<small>' + esc([x.arch, x.available ? mb(x.size) : 'binnenkort beschikbaar'].filter(Boolean).join(' · ')) + '</small></span>' +
+        (x.available ? ic('dl') : '');
+      return x.available
+        ? '<a class="dl' + (rec ? ' rec' : '') + '" data-dl href="' + esc(x.url) + '">' + inner + '</a>'
+        : '<div class="dl off" aria-disabled="true">' + inner + '</div>';
+    }).join('') : '<p class="empty">Er zijn nog geen downloads beschikbaar.</p>';
+
+    document.querySelectorAll('a[data-dl]').forEach(a => { a.onclick = downloadStarted; });
 
     if (p.email || p.phone) {
       $('#contact-sec').hidden = false;
-      $('#contact').innerHTML = `<div><h3>Hulp nodig?</h3><span class="muted">Neem contact op met ${esc(p.company || info.name)}</span></div>` +
-        (p.phone ? `<a href="tel:${esc(p.phone.replace(/[^+\d]/g, ''))}">📞 ${esc(p.phone)}</a>` : '') +
-        (p.email ? `<a href="mailto:${esc(p.email)}">✉️ ${esc(p.email)}</a>` : '');
+      $('#contact').innerHTML = '<div><h2 id="contact-h">Kom je er niet uit?</h2><p>Neem contact op met ' + esc(company) + ', we helpen je graag.</p></div>' +
+        '<div class="c-actions">' +
+        (p.phone ? '<a class="c-btn" href="tel:' + esc(tel(p.phone)) + '">' + ic('phone') + esc(p.phone) + '</a>' : '') +
+        (p.email ? '<a class="c-btn' + (p.phone ? ' ghost' : '') + '" href="mailto:' + esc(p.email) + '">' + ic('mail') + esc(p.email) + '</a>' : '') +
+        '</div>';
     }
-  }).catch(() => {
-    $('#intro').textContent = 'De downloadpagina kon niet worden geladen. Probeer het later opnieuw.';
-  });
+  }).catch(showError);
 })();
