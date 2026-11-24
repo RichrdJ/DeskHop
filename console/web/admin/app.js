@@ -307,21 +307,25 @@
   // ======================= Remote Control =======================
   async function pageRemote(el) {
     el.innerHTML = `
-      <div class="hero">
-        <h2>Computer op afstand bedienen</h2>
-        <p>Voer het ID van de partner in om een verbinding te starten via ${esc(APP)}.</p>
-        <form class="hero-row" id="cf">
-          <input class="partner-id" id="pid" placeholder="Partner-ID" inputmode="numeric" autocomplete="off">
-          <input class="partner-id" id="ppw" type="password" placeholder="Wachtwoord (optioneel)" style="flex:.6;letter-spacing:normal;font-size:16px">
-          <button class="btn connect">${icon('arrow', 18)} Verbinden</button>
+      <div class="card connect-card">
+        <div class="cc-head">
+          <span class="cc-ic">${icon('remote', 22)}</span>
+          <div><h3>Verbinden met een computer</h3><span class="muted">Vul het ID in dat de klant voorleest. ${esc(APP)} opent dan op deze computer.</span></div>
+        </div>
+        <form class="cc-form" id="cf" autocomplete="off">
+          <label class="cc-field cc-id"><span>ID</span><input class="input mono" id="pid" placeholder="123 456 789" inputmode="numeric" autocomplete="off" data-lpignore="true"></label>
+          <label class="cc-field"><span>Wachtwoord <em>optioneel</em></span><input class="input" id="ppw" type="password" autocomplete="new-password" data-lpignore="true"></label>
+          <button class="btn primary">${icon('arrow', 16)} Verbinden</button>
         </form>
-        <div class="hero-opts"><span>${icon('info', 15)} Vereist ${esc(APP)} op deze computer.</span></div>
-        <svg class="hero-deco" width="260" height="260" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width=".8">${ICONS.remote}</svg>
       </div>
       <div class="grid g-4" style="margin-top:18px" id="stats"></div>
       <div class="grid g-3" style="margin-top:18px;grid-template-columns:2fr 1fr 1fr" id="row2"></div>
       <div class="grid g-2" style="margin-top:18px" id="row3"></div>`;
     $('#cf').onsubmit = e => { e.preventDefault(); connect($('#pid').value, $('#ppw').value); };
+    $('#pid').addEventListener('input', e => {
+      const v = e.target.value;
+      if (/^[\d\s]*$/.test(v)) e.target.value = fmtId(v.replace(/\s+/g, ''));
+    });
     $('#pid').focus();
     const load = async () => {
       const [st, devs, sess] = await Promise.all([api('GET', '/stats'), loadDevices(), api('GET', '/sessions?limit=8')]);

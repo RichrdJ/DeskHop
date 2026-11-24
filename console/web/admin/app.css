@@ -175,7 +175,28 @@ table.tbl { width: 100%; border-collapse: collapse; }
 .empty { padding: 48px 20px; text-align: center; color: var(--muted); }
 .empty .ic { color: var(--line); margin-bottom: 8px; }
 
-/* ---------- remote control hero ---------- */
+/* ---------- connect card (remote control page) ---------- */
+.connect-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px 32px; align-items: end; padding: 22px 24px; }
+.cc-head { display: flex; gap: 14px; align-items: center; align-self: center; }
+.cc-head h3 { font-size: 16px; margin-bottom: 2px; }
+.cc-head .muted { font-size: 13.5px; }
+.cc-ic { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; background: var(--brand-50); color: var(--brand); flex: none; }
+.cc-form { display: flex; gap: 10px; align-items: flex-end; }
+.cc-field { display: flex; flex-direction: column; gap: 5px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.cc-field em { font-style: normal; font-weight: 500; opacity: .75; }
+.cc-field .input { width: 170px; }
+.cc-id .input { width: 190px; font-size: 15px; letter-spacing: .06em; font-weight: 600; }
+.cc-id .input::placeholder { letter-spacing: .06em; font-weight: 500; opacity: .45; }
+.cc-form .btn { height: 40px; }
+@media (max-width: 1100px) {
+  .connect-card { grid-template-columns: 1fr; }
+  .cc-form { flex-wrap: wrap; }
+  .cc-field { flex: 1 1 160px; }
+  .cc-field .input, .cc-id .input { width: 100%; }
+  .cc-form .btn { flex: 1 1 100%; }
+}
+
+/* ---------- remote control hero (legacy) ---------- */
 .hero {
   position: relative; overflow: hidden; border-radius: 16px; padding: 28px 30px; color: #fff;
   background: radial-gradient(1200px 300px at 100% 0%, rgba(255,255,255,.14), transparent 60%),
