@@ -169,7 +169,7 @@ table.tbl { width: 100%; border-collapse: collapse; }
 .hero-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: stretch; }
 .partner-id {
   flex: 1; min-width: 240px; height: 54px; border-radius: 12px; border: 0; padding: 0 18px; font-size: 22px; letter-spacing: .12em;
-  font-weight: 650; color: var(--text); background: #fff; outline: none; box-shadow: inset 0 0 0 2px transparent;
+  font-weight: 650; color: #0f1b2d; caret-color: #0e8ee9; background: #fff; outline: none; box-shadow: inset 0 0 0 2px transparent;
 }
 .partner-id:focus { box-shadow: inset 0 0 0 2px #7cc8ff; }
 .partner-id::placeholder { letter-spacing: normal; font-weight: 500; font-size: 16px; color: #8c99ad; }
