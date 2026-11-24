@@ -1,30 +1,22 @@
-# DeskHop - self-hosted remote support (ID-server, relay, downloadportaal en beheerconsole)
+# DeskHop - self-hosted remote support
 #
-#   https://support.richrdj.nl/        publieke downloadpagina (OS wordt automatisch herkend)
-#   https://support.richrdj.nl/admin   beheerconsole
+# Geen variabelen nodig: deploy deze stack zoals hij is en open daarna
+#   http://<server>:21114/admin   -> installatiewizard (beheerder, URL, serveradres)
 #
-# Te gebruiken als Portainer-stack of met:  docker stack deploy -c stack.yml deskhop
-# Geen poort 80/443 nodig. Gebruikte poorten:
-#   21114/tcp  portaal + console + API-server (optioneel met eigen TLS)
+#   /        publieke downloadpagina voor klanten
+#   /admin   beheerconsole
+#
+# Poorten (geen 80/443 nodig):
+#   21114/tcp  portaal + console + API
 #   21115/tcp  ID-server (NAT-test)
 #   21116/tcp  ID-server
 #   21116/udp  ID-server
 #   21117/tcp  relay-server
-#
-# Variabelen (Portainer: "Environment variables", CLI: export of .env):
-#   PUBLIC_URL       URL waarop het portaal bereikbaar is, bijv. https://support.richrdj.nl (verplicht)
-#   SERVER_HOST    DNS-naam/IP die DIRECT naar deze server wijst (poorten 21115-21117) (verplicht)
-#   ADMIN_PASSWORD   wachtwoord van de eerste admin (alleen gebruikt bij eerste start)
-#   DESKHOP_IMAGE         image van de console, bijv. ghcr.io/jouw-account/deskhop:latest
-#   DESKHOP_SERVER_IMAGE  image van ID/relay-server, bijv. ghcr.io/jouw-account/deskhop-server:latest
-#   APP_NAME         naam in de console (standaard DeskHop)
-#   CONSOLE_PORT     externe poort van portaal/console (standaard 21114)
-#   CLOUDFLARE_TUNNEL_TOKEN  alleen als je de cloudflared-service hieronder aanzet
 
 services:
   id-server:
-    image: ${DESKHOP_SERVER_IMAGE:-ghcr.io/richrdj/deskhop-server:latest}
-    command: hbbs -r ${SERVER_HOST:?SERVER_HOST is verplicht}:21117
+    image: ghcr.io/richrdj/deskhop-server:latest
+    command: hbbs
     volumes:
       - server-data:/root
     ports:
@@ -40,7 +32,7 @@ services:
       restart_policy: { condition: any }
 
   relay-server:
-    image: ${DESKHOP_SERVER_IMAGE:-ghcr.io/richrdj/deskhop-server:latest}
+    image: ghcr.io/richrdj/deskhop-server:latest
     command: hbbr
     volumes:
       - server-data:/root
@@ -53,33 +45,21 @@ services:
       restart_policy: { condition: any }
 
   console:
-    image: ${DESKHOP_IMAGE:-ghcr.io/richrdj/deskhop:latest}
+    image: ghcr.io/richrdj/deskhop:latest
     volumes:
-      - console-data:/data                    # database + gecachte installers
-      - server-data:/server-data:ro       # leest de publieke key van de ID-server
+      - console-data:/data                  # database, instellingen, installers, certificaat
+      - server-data:/server-data:ro         # leest de publieke key van de ID-server
     ports:
-      - { target: 21114, published: "${CONSOLE_PORT:-21114}", protocol: tcp, mode: host }
-    environment:
-      - APP_NAME=${APP_NAME:-DeskHop}
-      - ADMIN_USER=admin
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
-      - SERVER_HOST=${SERVER_HOST}
-      - PUBLIC_URL=${PUBLIC_URL:?PUBLIC_URL is verplicht, bijv. https://support.richrdj.nl}
-      - INSTALLER_AUTO_UPDATE=1               # nieuwste installers elke 6 uur ophalen
-      # HTTPS op 21114 zelf (geen 443 nodig): mount cert + key, bijv.
-      # - TLS_CERT=/certs/fullchain.pem
-      # - TLS_KEY=/certs/privkey.pem
+      - { target: 21114, published: 21114, protocol: tcp, mode: host }
     restart: unless-stopped
     deploy:
       restart_policy: { condition: any }
 
-  # Optioneel: Cloudflare Tunnel = https://support.richrdj.nl zonder open poort 80/443.
-  # Zet in Cloudflare Zero Trust de public hostname support.richrdj.nl -> http://console:21114
+  # Optioneel: Cloudflare Tunnel voor https://support.jouwdomein.nl zonder open poort 80/443.
+  # Zet in Cloudflare Zero Trust de public hostname -> http://console:21114 en vul je token in.
   # cloudflared:
   #   image: cloudflare/cloudflared:latest
-  #   command: tunnel --no-autoupdate run
-  #   environment:
-  #     - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+  #   command: tunnel --no-autoupdate run --token PLAK-HIER-JE-TUNNEL-TOKEN
   #   restart: unless-stopped
   #   deploy:
   #     restart_policy: { condition: any }

@@ -22,6 +22,6 @@ VOLUME ["/data"]
 EXPOSE 21114
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD python -c "import os,ssl,urllib.request as u; s='https' if os.environ.get('TLS_CERT') else 'http'; u.urlopen(s+'://127.0.0.1:'+os.environ.get('PORT','21114')+'/api/health', timeout=4, context=ssl._create_unverified_context())" || exit 1
+  CMD python /app/server/healthcheck.py
 
 CMD ["python", "/app/server/app.py"]

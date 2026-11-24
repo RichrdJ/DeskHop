@@ -220,16 +220,23 @@ def check_password(pw, stored):
         return False
 
 
+def app_name():
+    return get_setting("app_name") or APP_NAME
+
+
+def setup_needed():
+    return not q1("SELECT id FROM users LIMIT 1")
+
+
 def init_db():
     db().executescript(SCHEMA)
-    if not q1("SELECT id FROM users LIMIT 1"):
-        pw = ADMIN_PASSWORD or secrets.token_urlsafe(12)
+    if setup_needed() and ADMIN_PASSWORD:
         ex("INSERT INTO users(username,display_name,password_hash,is_admin,status,created_at) VALUES(?,?,?,?,?,?)",
-           (ADMIN_USER, "Administrator", hash_password(pw), 1, 1, now()))
+           (ADMIN_USER, "Administrator", hash_password(ADMIN_PASSWORD), 1, 1, now()))
+        log("Created initial admin user '%s' from ADMIN_PASSWORD" % ADMIN_USER)
+    if setup_needed():
         log("=" * 60)
-        log("Created initial admin user '%s'" % ADMIN_USER)
-        if not ADMIN_PASSWORD:
-            log("Generated password: %s   (change it after first login!)" % pw)
+        log("Nog geen beheerder: open /admin in je browser om de installatie af te ronden.")
         log("=" * 60)
     if not q1("SELECT id FROM groups LIMIT 1"):
         for name, color in (("Werkplekken", "#0e8ee9"), ("Servers", "#7c5cff")):
@@ -251,7 +258,7 @@ def read_key():
 
 
 def server_info():
-    host = get_setting("host") or SRV_HOST
+    host = get_setting("host") or SRV_HOST or urlparse(public_url()).hostname or ""
     relay = get_setting("relay") or SRV_RELAY
     api = get_setting("api") or SRV_API or public_url()
     key = read_key()
@@ -269,7 +276,7 @@ def server_info():
 
 
 def brand_slug():
-    name = APP_NAME
+    name = app_name()
     s = re.sub(r"[^A-Za-z0-9]+", "-", name).strip("-")
     return re.sub(r"-{2,}", "-", s) or "Support"
 
@@ -475,7 +482,7 @@ class Handler(BaseHTTPRequestHandler):
         with open(full, "rb") as f:
             data = f.read()
         if full.endswith("index.html"):
-            data = data.replace(b"__APP_NAME__", html_escape(APP_NAME).encode())
+            data = data.replace(b"__APP_NAME__", html_escape(app_name()).encode())
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(data)))
@@ -756,7 +763,7 @@ def api_audit_alarm(h):
 
 @route("GET", "/api/health")
 def api_health(h):
-    return {"ok": True, "name": APP_NAME}
+    return {"ok": True, "name": app_name()}
 
 
 # ==========================================================================
@@ -764,7 +771,7 @@ def api_health(h):
 # ==========================================================================
 @route("GET", "/console-api/meta")
 def c_meta(h):
-    return {"name": APP_NAME}
+    return {"name": app_name(), "setup": setup_needed()}
 
 
 @route("POST", "/console-api/login")
@@ -1098,6 +1105,7 @@ PLATFORMS = [
     ("mac_x64", "macOS Intel", "mac", "Intel · .dmg", r"^[a-z]+-[\d.]+-x86_64\.dmg$", True),
 ]
 PLATFORM_MAP = {p[0]: p for p in PLATFORMS}
+ADMIN_ONLY = {"win_msi"}  # not shown on the customer portal, still downloadable for rollout scripts
 SYNC_STATE = {"running": False, "last_error": "", "last_run": 0, "progress": ""}
 SYNC_LOCK = threading.Lock()
 
@@ -1237,10 +1245,10 @@ def platform_out(key, meta):
 
 def portal_settings():
     return {
-        "company": get_setting("portal_company") or APP_NAME,
+        "company": get_setting("portal_company") or app_name(),
         "title": get_setting("portal_title") or "Hulp op afstand",
         "intro": get_setting("portal_intro") or
-        "Download " + APP_NAME + ", start het programma en geef je ID en wachtwoord door aan de supportmedewerker. "
+        "Download " + app_name() + ", start het programma en geef je ID en wachtwoord door aan de supportmedewerker. "
         "Er wordt pas verbinding gemaakt als jij dat toestaat.",
         "email": get_setting("portal_email"),
         "phone": get_setting("portal_phone"),
@@ -1252,8 +1260,8 @@ def p_info(h):
     meta = inst_meta()
     si = server_info()
     return {
-        "name": APP_NAME, "portal": portal_settings(),
-        "platforms": [platform_out(k, meta) for k in PLATFORM_MAP if inst_enabled(k, meta)],
+        "name": app_name(), "portal": portal_settings(),
+        "platforms": [platform_out(k, meta) for k in PLATFORM_MAP if inst_enabled(k, meta) and k not in ADMIN_ONLY],
         "config_string": si["config_string"] if si["host"] else "",
         "host": si["host"], "windows_auto_config": si["filename_ok"],
     }
@@ -1307,7 +1315,7 @@ def c_installers(h):
         "pinned": get_setting("installer_version"),
         "auto": get_setting("installer_auto", "1" if INSTALLER_AUTO_UPDATE else "0") == "1",
         "downloads_30d": q1("SELECT COUNT(*) c FROM downloads WHERE created_at>?", (since,))["c"],
-        "recent": recent, "portal": portal_settings(), "public_url": public_url(),
+        "recent": recent, "portal": portal_settings(), "public_url": public_url(), "app_name": app_name(),
         "server": {k: v for k, v in server_info().items() if k in ("host", "filename_ok", "filename_windows")},
     }
 
@@ -1389,11 +1397,110 @@ def c_portal_put(h):
             set_setting("portal_" + k, str(b[k] or "").strip())
     if "public_url" in b:
         set_setting("public_url", str(b["public_url"] or "").strip().rstrip("/"))
+    if "app_name" in b:
+        set_setting("app_name", re.sub(r"[<>\"]", "", str(b["app_name"] or "")).strip()[:40])
     if "auto" in b:
         set_setting("installer_auto", "1" if b["auto"] else "0")
     if "pinned" in b:
         set_setting("installer_version", str(b["pinned"] or "").strip())
     return {"ok": True}
+
+
+# ==========================================================================
+# First-run setup (no environment variables needed)
+# ==========================================================================
+SETUP_LOCK = threading.Lock()
+
+
+@route("POST", "/console-api/setup")
+def c_setup(h):
+    b = h.body_json()
+    with SETUP_LOCK:
+        if not setup_needed():
+            raise HttpError(409, "De installatie is al afgerond")
+        un = str(b.get("username", "")).strip()
+        if not re.match(r"^[A-Za-z0-9_.@\-]{2,64}$", un):
+            raise HttpError(400, "Ongeldige gebruikersnaam")
+        if len(b.get("password", "")) < 10:
+            raise HttpError(400, "Kies een wachtwoord van minimaal 10 tekens")
+        ex("INSERT INTO users(username,display_name,email,password_hash,is_admin,status,created_at,last_login) "
+           "VALUES(?,?,?,?,?,?,?,?)",
+           (un, str(b.get("display_name") or un), str(b.get("email") or ""), hash_password(b["password"]),
+            1, 1, now(), now()))
+    for k in ("app_name", "public_url", "host"):
+        v = str(b.get(k) or "").strip().rstrip("/")
+        if v:
+            set_setting(k, v)
+    if b.get("company"):
+        set_setting("portal_company", str(b["company"]).strip())
+    u = q1("SELECT * FROM users WHERE username=?", (un,))
+    tok = secrets.token_hex(32)
+    ex("INSERT INTO tokens(token,user_id,kind,ip,created_at,last_used,device_name) VALUES(?,?,?,?,?,?,?)",
+       (tok, u["id"], "web", h.client_ip(), now(), now(), (h.headers.get("User-Agent") or "")[:120]))
+    log("Setup completed by %s from %s" % (un, h.client_ip()))
+    if get_setting("installer_auto", "1" if INSTALLER_AUTO_UPDATE else "0") == "1":
+        sync_async()
+    return {"token": tok, "user": c_user_out(u)}
+
+
+# ---- HTTPS certificate via the GUI ----
+TLS_DIR = os.path.join(DATA_DIR, "tls")
+TLS_CERT_FILE = os.path.join(TLS_DIR, "cert.pem")
+TLS_KEY_FILE = os.path.join(TLS_DIR, "key.pem")
+TLS_ACTIVE = {"on": False}
+
+
+def tls_info():
+    info = {"configured": os.path.isfile(TLS_CERT_FILE) and os.path.isfile(TLS_KEY_FILE),
+            "active": TLS_ACTIVE["on"], "env": bool(os.environ.get("TLS_CERT"))}
+    if info["configured"]:
+        try:
+            import ssl
+            d = ssl._ssl._test_decode_cert(TLS_CERT_FILE)
+            info["subject"] = ", ".join("=".join(x) for r in d.get("subject", ()) for x in r)
+            info["names"] = [v for k, v in d.get("subjectAltName", ()) if k == "DNS"]
+            info["not_after"] = d.get("notAfter", "")
+        except Exception as e:
+            info["error"] = str(e)
+    return info
+
+
+@route("GET", "/console-api/tls", auth="admin")
+def c_tls_get(h):
+    return tls_info()
+
+
+@route("PUT", "/console-api/tls", auth="admin")
+def c_tls_put(h):
+    import ssl
+    import tempfile
+    b = h.body_json()
+    cert, key = str(b.get("cert") or "").strip(), str(b.get("key") or "").strip()
+    if "BEGIN CERTIFICATE" not in cert or "PRIVATE KEY" not in key:
+        raise HttpError(400, "Plak het certificaat (fullchain) en de private key in PEM-formaat")
+    os.makedirs(TLS_DIR, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=TLS_DIR) as td:
+        c, k = os.path.join(td, "c.pem"), os.path.join(td, "k.pem")
+        with open(c, "w") as f:
+            f.write(cert + "\n")
+        with open(k, "w") as f:
+            f.write(key + "\n")
+        os.chmod(k, 0o600)
+        try:
+            ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER).load_cert_chain(c, k)
+        except Exception as e:
+            raise HttpError(400, "Certificaat en key horen niet bij elkaar of zijn ongeldig: %s" % e)
+        os.replace(c, TLS_CERT_FILE)
+        os.replace(k, TLS_KEY_FILE)
+    return dict(tls_info(), message="Opgeslagen. Herstart de console-container om HTTPS te activeren.")
+
+
+@route("DELETE", "/console-api/tls", auth="admin")
+def c_tls_delete(h):
+    for f in (TLS_CERT_FILE, TLS_KEY_FILE):
+        if os.path.isfile(f):
+            os.remove(f)
+    return dict(tls_info(), message="Verwijderd. Herstart de console-container om terug te gaan naar HTTP.")
 
 
 # --------------------------------------------------------------------------
@@ -1403,6 +1510,8 @@ def main():
     srv = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     srv.daemon_threads = True
     cert, key = os.environ.get("TLS_CERT", ""), os.environ.get("TLS_KEY", "")
+    if not (cert and key) and os.path.isfile(TLS_CERT_FILE) and os.path.isfile(TLS_KEY_FILE):
+        cert, key = TLS_CERT_FILE, TLS_KEY_FILE
     scheme = "http"
     if cert and key and os.path.isfile(cert) and os.path.isfile(key):
         import ssl
@@ -1411,7 +1520,8 @@ def main():
         ctx.load_cert_chain(cert, key)
         srv.socket = ctx.wrap_socket(srv.socket, server_side=True)
         scheme = "https"
-    log("%s console listening on %s://0.0.0.0:%d  (data: %s)" % (APP_NAME, scheme, PORT, os.path.realpath(DATA_DIR)))
+        TLS_ACTIVE["on"] = True
+    log("%s console listening on %s://0.0.0.0:%d  (data: %s)" % (app_name(), scheme, PORT, os.path.realpath(DATA_DIR)))
     try:
         srv.serve_forever()
     except KeyboardInterrupt:

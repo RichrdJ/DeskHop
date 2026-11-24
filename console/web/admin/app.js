@@ -599,6 +599,7 @@
             <div class="card"><div class="card-h">${icon('globe', 18)}<h3>Portaal</h3><span class="spacer"></span><a class="btn sm" id="open-portal" target="_blank" rel="noopener">${icon('external', 14)} Openen</a></div><div class="card-b">
               <form id="pf">
                 <div class="field"><label>Publieke URL</label><input class="input" name="public_url" placeholder="https://support.richrdj.nl"><span class="hint">Wordt ook gebruikt als API-server voor de ${esc(APP)}-apps.</span></div>
+                <div class="field"><label>Productnaam</label><input class="input" name="app_name" placeholder="DeskHop"><span class="hint">Naam van de app en van de downloads (bijv. DeskHop.dmg).</span></div>
                 <div class="field"><label>Bedrijfsnaam</label><input class="input" name="company"></div>
                 <div class="field"><label>Titel</label><input class="input" name="title"></div>
                 <div class="field"><label>Introductietekst</label><textarea class="input" name="intro"></textarea></div>
@@ -611,11 +612,12 @@
           </div>`;
         const f = $('#pf');
         ['public_url', 'company', 'title', 'intro', 'phone', 'email'].forEach(k => { f[k].value = k === 'public_url' ? d.public_url : (d.portal[k] || ''); });
+        f.app_name.value = d.app_name || '';
         f.pinned.value = d.pinned || '';
         if (!admin) $$('input,textarea', f).forEach(i => i.disabled = true);
         f.onsubmit = async e => {
           e.preventDefault();
-          const v = {}; ['public_url', 'company', 'title', 'intro', 'phone', 'email', 'pinned'].forEach(k => v[k] = f[k].value);
+          const v = {}; ['public_url', 'app_name', 'company', 'title', 'intro', 'phone', 'email', 'pinned'].forEach(k => v[k] = f[k].value);
           try { await api('PUT', '/portal', v); toast('Portaal opgeslagen'); load(); } catch (err) { toast(err.message, true); }
         };
         if (admin) {
@@ -641,7 +643,7 @@
           <td><label class="check"><input type="checkbox" data-en="${p.key}" ${p.enabled ? 'checked' : ''} ${admin ? '' : 'disabled'}></label></td>
           <td><b>${esc(p.label)}</b><br><small class="muted">${esc(p.arch)}</small></td>
           <td>${p.available ? `<span class="mono" style="font-size:12.5px" title="${esc(p.file)}">${esc(p.file.includes("--") ? p.file.split("--")[0] + "--….exe" : p.file)}</span><br><small class="muted">v${esc(p.version)}</small>` : `<span class="muted">${p.enabled ? 'Nog niet gedownload' : '—'}</span>`}</td>
-          <td class="hide-sm">${p.source === 'upload' ? '<span class="badge brand">Eigen upload</span>' : p.source === 'github' ? '<span class="badge">Automatisch</span>' : ''}</td>
+          <td class="hide-sm">${p.key === 'win_msi' ? '<span class="badge warn" title="Niet zichtbaar voor klanten, wel voor je uitrolscripts">Alleen uitrol</span> ' : ''}${p.source === 'upload' ? '<span class="badge brand">Eigen upload</span>' : p.source === 'github' ? '<span class="badge">Automatisch</span>' : ''}</td>
           <td class="hide-sm">${p.available ? mb(p.size) : '—'}</td>
           <td class="hide-sm">${p.downloads}</td>
           <td class="actions">
@@ -690,7 +692,7 @@
     try { info = await api('GET', '/deploy'); } catch (e) { toast(e.message, true); return; }
     const missing = !info.host || !info.key;
     el.innerHTML = `
-      ${missing ? `<div class="alert">${icon('info', 18)}<div><b>Configuratie incompleet.</b> ${!info.host ? 'Er is nog geen publiek serveradres ingesteld. ' : ''}${!info.key ? 'De publieke sleutel van hbbs is niet gevonden. ' : ''}Stel dit in via ${S.me.is_admin ? '<a href="#/settings">Instellingen</a>' : 'een beheerder'} of de environment-variabelen.</div></div>` : ''}
+      ${missing ? `<div class="alert">${icon('info', 18)}<div><b>Configuratie incompleet.</b> ${!info.host ? 'Er is nog geen publiek serveradres ingesteld. ' : ''}${!info.key ? 'De publieke key van de ID-server is nog niet gevonden (start de stack volledig op). ' : ''}Stel dit in via ${S.me.is_admin ? '<a href="#/settings">Instellingen</a>' : 'een beheerder'}.</div></div>` : ''}
       <div class="grid g-2">
         <div class="card"><div class="card-h">${icon('server', 18)}<h3>Serverconfiguratie</h3></div><div class="card-b">
           <div class="field"><label>ID-server</label>${codebox(info.host)}</div>
@@ -746,11 +748,19 @@ $app = Get-ChildItem "$env:ProgramFiles" -Filter '*.exe' -Recurse -Depth 1 | Whe
       <button class="btn primary">Wachtwoord wijzigen</button></form></div></div>`;
     if (S.me.is_admin) {
       html += `<div class="card"><div class="card-h">${icon('server', 18)}<h3>Server</h3></div><div class="card-b"><form id="srvf">
-        <div class="field"><label>Publiek adres ID-server (hbbs)</label><input class="input" name="host" placeholder="remote.bedrijf.nl"><span class="hint" id="h-host"></span></div>
-        <div class="field"><label>Relay-server (hbbr)</label><input class="input" name="relay" placeholder="leeg = zelfde host"><span class="hint" id="h-relay"></span></div>
-        <div class="field"><label>API-server (deze console)</label><input class="input" name="api" placeholder="https://remote.bedrijf.nl"><span class="hint" id="h-api"></span></div>
-        <div class="field"><label>Publieke key (override)</label><input class="input mono" name="key" placeholder="leeg = automatisch uit hbbs-volume"><span class="hint" id="h-key"></span></div>
+        <div class="field"><label>Adres ID-server</label><input class="input" name="host" placeholder="rd.bedrijf.nl"><span class="hint" id="h-host"></span></div>
+        <div class="field"><label>Relay-server</label><input class="input" name="relay" placeholder="leeg = zelfde adres als ID-server"><span class="hint" id="h-relay"></span></div>
+        <div class="field"><label>API-server</label><input class="input" name="api" placeholder="leeg = publieke URL van het portaal"><span class="hint" id="h-api"></span></div>
+        <div class="field"><label>Publieke key (override)</label><input class="input mono" name="key" placeholder="leeg = automatisch van de ID-server"><span class="hint" id="h-key"></span></div>
         <button class="btn primary">Opslaan</button></form></div></div>
+        <div class="card"><div class="card-h">${icon('shield', 18)}<h3>HTTPS-certificaat</h3><span class="spacer"></span><span id="tls-badge"></span></div><div class="card-b">
+          <p class="muted" style="margin-top:0">Optioneel: laat de console zelf HTTPS doen op poort 21114 (geen 443 nodig). Niet nodig als je een Cloudflare Tunnel of reverse proxy gebruikt.</p>
+          <div id="tls-info"></div>
+          <form id="tlsf">
+            <div class="field"><label>Certificaat (fullchain.pem)</label><textarea class="input mono" name="cert" placeholder="-----BEGIN CERTIFICATE-----" style="font-size:12px"></textarea></div>
+            <div class="field"><label>Private key (privkey.pem)</label><textarea class="input mono" name="key" placeholder="-----BEGIN PRIVATE KEY-----" style="font-size:12px"></textarea></div>
+            <div style="display:flex;gap:10px"><button class="btn primary">Certificaat opslaan</button><button type="button" class="btn danger" id="tls-del">Verwijderen</button></div>
+          </form></div></div>
         <div class="card" style="grid-column:1/-1"><div class="card-h">${icon('key', 18)}<h3>Actieve logins</h3><span class="spacer"></span><span class="muted">Console- en client-sessies</span></div><div id="toks"></div></div>`;
     }
     g.innerHTML = html;
@@ -763,10 +773,25 @@ $app = Get-ChildItem "$env:ProgramFiles" -Filter '*.exe' -Recurse -Depth 1 | Whe
     const st = await api('GET', '/settings');
     const f = $('#srvf');
     ['host', 'relay', 'api', 'key'].forEach(k => { f[k].value = st[k] || ''; });
-    $('#h-host').textContent = st.env.host ? 'Environment: ' + st.env.host : 'Niet gezet via environment';
-    $('#h-relay').textContent = st.env.relay ? 'Environment: ' + st.env.relay : '';
-    $('#h-api').textContent = st.env.api ? 'Environment: ' + st.env.api : 'Niet gezet via environment';
-    $('#h-key').textContent = 'Sleutelbestand: ' + st.env.key_file;
+    $('#h-host').textContent = 'DNS-naam die direct naar je server wijst (poorten 21115–21117). Leeg = hostnaam van de publieke URL.';
+    $('#h-relay').textContent = '';
+    $('#h-api').textContent = 'Wordt standaard afgeleid van de publieke URL (Downloadportaal).';
+    $('#h-key').textContent = 'Wordt automatisch gelezen; alleen invullen als je een eigen key gebruikt.';
+    const showTls = t => {
+      $('#tls-badge').innerHTML = t.active ? '<span class="badge ok">Actief</span>' : t.configured ? '<span class="badge warn">Herstart nodig</span>' : '<span class="badge">Uit</span>';
+      $('#tls-info').innerHTML = t.configured ? `<dl class="kv"><dt>Domeinen</dt><dd>${esc((t.names || []).join(', ') || t.subject || '—')}</dd><dt>Geldig tot</dt><dd>${esc(t.not_after || '—')}</dd></dl>` : '';
+      $('#tls-del').style.display = t.configured ? '' : 'none';
+    };
+    showTls(await api('GET', '/tls'));
+    $('#tlsf').onsubmit = async e => {
+      e.preventDefault();
+      try { const r = await api('PUT', '/tls', { cert: e.target.cert.value, key: e.target.key.value }); toast(r.message); e.target.reset(); showTls(r); }
+      catch (err) { toast(err.message, true); }
+    };
+    $('#tls-del').onclick = async () => {
+      if (!await confirmBox('Certificaat verwijderen', 'Het HTTPS-certificaat verwijderen? Na een herstart draait de console weer op HTTP.')) return;
+      const r = await api('DELETE', '/tls'); toast(r.message); showTls(r);
+    };
     f.onsubmit = async e => {
       e.preventDefault();
       try { await api('PUT', '/settings', { host: f.host.value, relay: f.relay.value, api: f.api.value, key: f.key.value }); toast('Instellingen opgeslagen'); }
@@ -779,8 +804,56 @@ $app = Get-ChildItem "$env:ProgramFiles" -Filter '*.exe' -Recurse -Depth 1 | Whe
       : '<div class="empty">Geen actieve logins</div>';
   }
 
+  // ---------------- first-run setup ----------------
+  function renderSetup() {
+    document.title = 'Installatie · ' + APP;
+    $('#root').innerHTML = `
+      <div class="login">
+        <div class="login-art">
+          <div class="brand" style="padding:0"><div class="brand-logo">${icon('arrow', 20)}</div><div><b>${esc(APP)}</b><small>Eerste installatie</small></div></div>
+          <h1>Welkom! Nog even een paar gegevens.</h1>
+          <p>Alles wat je hier invult kun je later aanpassen onder Instellingen en Downloadportaal. Er zijn geen environment-variabelen nodig.</p>
+          <div class="feats"><span>${icon('shield', 16)} Je eerste account wordt beheerder</span></div>
+        </div>
+        <div class="login-form" style="overflow:auto">
+          <form id="sf" style="width:420px">
+            <h2>Installatie</h2>
+            <p>Maak je beheerdersaccount aan en stel je server in.</p>
+            <h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:4px 0 12px">Beheerder</h3>
+            <div class="grid g-2" style="gap:12px">
+              <div class="field"><label>Gebruikersnaam</label><input class="input" name="username" value="admin" required autocomplete="username"></div>
+              <div class="field"><label>Naam</label><input class="input" name="display_name" placeholder="Je naam"></div>
+            </div>
+            <div class="field"><label>Wachtwoord</label><input class="input" type="password" name="password" required minlength="10" autocomplete="new-password"><span class="hint">Minimaal 10 tekens</span></div>
+            <div class="field"><label>Herhaal wachtwoord</label><input class="input" type="password" name="password2" required autocomplete="new-password"></div>
+            <h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:18px 0 12px">Server</h3>
+            <div class="grid g-2" style="gap:12px">
+              <div class="field"><label>Productnaam</label><input class="input" name="app_name" value="${esc(APP)}"></div>
+              <div class="field"><label>Bedrijfsnaam</label><input class="input" name="company" placeholder="Bijv. RichrdJ Support"></div>
+            </div>
+            <div class="field"><label>Publieke URL van het portaal</label><input class="input" name="public_url" value="${esc(location.origin)}" required><span class="hint">Waar klanten de download vinden, bijv. https://support.richrdj.nl</span></div>
+            <div class="field"><label>Adres ID-server</label><input class="input" name="host" value="${esc(location.hostname)}" required><span class="hint">DNS-naam of IP die <b>direct</b> naar deze server wijst (poorten 21115–21117)</span></div>
+            <button class="btn primary">Installatie afronden ${icon('arrow', 16)}</button>
+            <div class="err-msg"></div>
+          </form>
+        </div>
+      </div>`;
+    $('#sf').onsubmit = async e => {
+      e.preventDefault();
+      const f = e.target; $('.err-msg', f).textContent = '';
+      if (f.password.value !== f.password2.value) { $('.err-msg', f).textContent = 'De wachtwoorden zijn niet gelijk'; return; }
+      const body = {}; ['username', 'display_name', 'password', 'app_name', 'company', 'public_url', 'host'].forEach(k => body[k] = f[k].value);
+      try {
+        const r = await api('POST', '/setup', body);
+        try { localStorage.setItem('nx_token', r.token); } catch (e2) { /* ignore */ }
+        location.hash = '#/downloads'; location.reload();
+      } catch (err) { $('.err-msg', f).textContent = err.message; }
+    };
+  }
+
   // ---------------- boot ----------------
   (async function boot() {
+    try { const m = await fetch('/console-api/meta').then(r => r.json()); if (m.setup) return renderSetup(); } catch (e) { /* ignore */ }
     if (!S.token) return renderLogin();
     try { S.me = await api('GET', '/me'); renderShell(); }
     catch (e) { if (S.token) logoutLocal(); }

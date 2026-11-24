@@ -82,16 +82,15 @@ jobs:
           IMAGE="ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
           VERSION="${GITHUB_REF_NAME#v}"
           cat > notes.md <<NOTES
-          ## Docker image
+          ## Installeren
+          1. Maak in Portainer een stack van \`stack.yml\` hieronder (of \`docker stack deploy -c stack.yml deskhop\`). Er zijn geen variabelen nodig.
+          2. Open \`http://<server>:21114/admin\` en doorloop de installatiewizard.
+
+          ## Images
           \`\`\`
           ${IMAGE}:${VERSION}
-          ${IMAGE}:latest
+          ${IMAGE}-server:${VERSION}
           \`\`\`
-
-          ## Installeren
-          1. Download \`stack.yml\` hieronder en maak er een stack van in Portainer (of \`docker stack deploy -c stack.yml deskhop\`).
-          2. Zet \`PUBLIC_URL\`, \`SERVER_HOST\`, \`ADMIN_PASSWORD\`, \`DESKHOP_IMAGE=${IMAGE}:${VERSION}\` en \`DESKHOP_SERVER_IMAGE=${IMAGE}-server:${VERSION}\`.
-          3. Portaal: \`PUBLIC_URL/\` · Beheer: \`PUBLIC_URL/admin\`
           NOTES
           sed -i 's/^          //' notes.md
       - uses: softprops/action-gh-release@v2
@@ -100,4 +99,3 @@ jobs:
           generate_release_notes: true
           files: |
             stack.yml
-            .env.example
